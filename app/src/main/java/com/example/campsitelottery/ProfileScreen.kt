@@ -45,6 +45,7 @@ fun ProfileScreen(
             Button(
                 onClick = { navController.popBackStack() },
                 shape = RectangleShape,
+                modifier = Modifier.testTag("toBackButton")
 
             ) {
                 Text("Back")
@@ -53,7 +54,7 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
-                onClick = { navController.popBackStack() },
+                onClick = { }, //TODO: make it actually delete the profile
                 shape = RectangleShape,
 
                 ) {
@@ -128,7 +129,7 @@ fun ProfileScreen(
 
             Button(
                 onClick = { }, //TODO: make it actually opt out of notifications
-                modifier = Modifier.testTag("toPolicyButton"),
+                modifier = Modifier.testTag("toOutNotificationButton"),
                 shape = RectangleShape
             ) {
                 Text("Opt out Notifications")

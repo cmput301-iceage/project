@@ -1,5 +1,6 @@
 package com.example.campsitelottery
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
@@ -28,6 +30,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 
@@ -37,6 +40,9 @@ import androidx.navigation.compose.rememberNavController
 fun HomeScreen(
     navController : NavController
 ) {
+
+    val dummyCampsite = mutableListOf<String>("Campsite 1", "Campsite 2", "Campsite 3")
+
     // Format Screen Here
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -122,7 +128,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.width(16.dp))
 
             Button(
-                onClick = {}, //TODO: make button search for campsites
+                onClick = {}, //TODO: make search using filters
                 shape = RectangleShape,
                 //modifier = Modifier.size(64.dp)
             ) {
@@ -137,16 +143,26 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth().height(700.dp)
         ) {
 
-            //TODO: add dummy objects
+
             //TODO: find a way to connect model to display objects
 
-
+            items(dummyCampsite) { campsite ->
+                Text(
+                    text = campsite,
+                    fontSize = 60.sp,
+                    modifier = Modifier.testTag("toCampsitesButton").fillMaxWidth().clickable { //
+                        navController.navigate("campsiteInfo")
+                        //TODO: find a way to pass campsite info into the screen
+                        }
+                )
+            }
 
         }
 
 
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
