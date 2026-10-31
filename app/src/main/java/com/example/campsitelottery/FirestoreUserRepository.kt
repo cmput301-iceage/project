@@ -70,6 +70,18 @@ class FirestoreUserRepository(
             .addOnFailureListener(onFailure)
     }
 
+    override fun setNotificationsEnabled(
+        userId: String,
+        enabled: Boolean,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        users.document(userId)
+            .update("notificationsEnabled", enabled)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener(onFailure)
+    }
+
     companion object {
         /** Name of the Firestore collection that holds user profiles. */
         const val USERS_COLLECTION = "users"

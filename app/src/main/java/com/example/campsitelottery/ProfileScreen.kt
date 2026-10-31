@@ -35,13 +35,14 @@ import androidx.navigation.compose.rememberNavController
 
 /**
  * Shows the current device user's profile and lets them edit their name, email and
- * phone number (US 7.3) or delete their profile (US 8.1), plus links to their
- * reservations, notifications and lotteries.
+ * phone number (US 7.3), delete their profile (US 8.1) or opt out of notifications
+ * (US 10.1), plus links to their reservations, notifications and lotteries.
  *
  * @param navController used to go back and to open the linked screens.
  * @param userState the current user's profile, as loaded by [CampsiteLotteryApp].
  * @param userRepository where profile changes are saved.
- * @param onUserUpdated called with the updated user after a change is saved.
+ * @param onUserUpdated called with the updated user after a profile change or
+ *   notification preference is saved.
  * @param onUserDeleted called after the profile has been deleted.
  * @param onRetry called to load the profile again: after a failed load, or to create
  *   a fresh profile after deleting one.
@@ -59,6 +60,26 @@ fun ProfileScreen(
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
     var deleteError by remember { mutableStateOf<String?>(null) }
+    var isSavingNotifications by remember { mutableStateOf(false) }
+    var notificationError by remember { mutableStateOf<String?>(null) }
+
+    fun toggleNotifications(user: User) {
+        val enabled = !user.notificationsEnabled
+        isSavingNotifications = true
+        notificationError = null
+        userRepository.setNotificationsEnabled(
+            user.userId,
+            enabled,
+            onSuccess = {
+                isSavingNotifications = false
+                onUserUpdated(user.copy(notificationsEnabled = enabled))
+            },
+            onFailure = {
+                isSavingNotifications = false
+                notificationError = "Couldn't update notification settings: ${it.message}"
+            },
+        )
+    }
 
     if (showDeleteDialog && userState is UserState.Ready) {
         DeleteProfileDialog(
@@ -204,6 +225,8 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
+        notificationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
         Row(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -218,12 +241,17 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            val readyUser = (userState as? UserState.Ready)?.user
             Button(
-                onClick = { }, //TODO: make it actually opt out of notifications
+                onClick = { readyUser?.let(::toggleNotifications) },
+                enabled = readyUser != null && !isSavingNotifications,
                 modifier = Modifier.testTag("toOutNotificationButton"),
                 shape = RectangleShape
             ) {
-                Text("Opt out Notifications")
+                Text(
+                    if (readyUser?.notificationsEnabled == false) "Opt in Notifications"
+                    else "Opt out Notifications"
+                )
             }
         }
 

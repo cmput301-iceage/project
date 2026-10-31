@@ -118,4 +118,26 @@ class InMemoryUserRepositoryTest {
         assertNotNull(reported)
         assertNotNull(repo.peek("device-1"))
     }
+
+    @Test
+    fun setNotificationsEnabled_optsOutAndBackIn() {
+        val repo = InMemoryUserRepository(listOf(User(userId = "device-1", name = "Jane")))
+
+        repo.setNotificationsEnabled("device-1", false, {}, { fail("unexpected failure: $it") })
+        assertFalse(repo.peek("device-1")!!.notificationsEnabled)
+        assertEquals("Jane", repo.peek("device-1")!!.name)
+
+        repo.setNotificationsEnabled("device-1", true, {}, { fail("unexpected failure: $it") })
+        assertTrue(repo.peek("device-1")!!.notificationsEnabled)
+    }
+
+    @Test
+    fun setNotificationsEnabled_failsForMissingProfile() {
+        val repo = InMemoryUserRepository()
+
+        var reported: Exception? = null
+        repo.setNotificationsEnabled("nobody", false, { fail("should not succeed") }, { reported = it })
+
+        assertNotNull(reported)
+    }
 }

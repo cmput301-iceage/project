@@ -53,4 +53,16 @@ class InMemoryUserRepository(initialUsers: List<User> = emptyList()) : UserRepos
         users.remove(userId)
         onSuccess()
     }
+
+    override fun setNotificationsEnabled(
+        userId: String,
+        enabled: Boolean,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        failWith?.let { return onFailure(it) }
+        val user = users[userId] ?: return onFailure(NoSuchElementException("No profile for $userId"))
+        users[userId] = user.copy(notificationsEnabled = enabled)
+        onSuccess()
+    }
 }

@@ -62,4 +62,22 @@ interface UserRepository {
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit,
     )
+
+    /**
+     * Opts the user in to or out of notifications (US 10.1) by setting
+     * [User.notificationsEnabled]. Anything that sends notifications must check
+     * that flag first.
+     *
+     * @param userId the profile to change.
+     * @param enabled true to receive notifications, false to opt out.
+     * @param onSuccess called once the preference is saved.
+     * @param onFailure receives the error if the preference could not be saved,
+     *   including when the profile does not exist.
+     */
+    fun setNotificationsEnabled(
+        userId: String,
+        enabled: Boolean,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit,
+    )
 }
