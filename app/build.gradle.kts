@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.dokka)
     id("com.google.gms.google-services")
 }
 
@@ -58,4 +59,21 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-database")
 
+}
+
+// KDoc generation: run `./gradlew :app:dokkaGeneratePublicationHtml`
+// and open app/build/dokka/html/index.html
+dokka {
+    moduleName.set("CampsiteLottery")
+    dokkaSourceSets.configureEach {
+        // Include internal and protected members, not just public API
+        documentedVisibilities.set(
+            setOf(
+                org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier.Public,
+                org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier.Internal,
+                org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier.Protected,
+            )
+        )
+        reportUndocumented.set(false)
+    }
 }
