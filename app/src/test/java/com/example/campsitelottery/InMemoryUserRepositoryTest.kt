@@ -84,4 +84,38 @@ class InMemoryUserRepositoryTest {
         assertNotNull(reported)
         assertNull(repo.peek("nobody"))
     }
+
+    @Test
+    fun deleteUser_removesProfile() {
+        val repo = InMemoryUserRepository(listOf(User(userId = "device-1", name = "Jane")))
+
+        var deleted = false
+        repo.deleteUser("device-1", { deleted = true }, { fail("unexpected failure: $it") })
+
+        assertTrue(deleted)
+        assertNull(repo.peek("device-1"))
+    }
+
+    @Test
+    fun getOrCreateUser_afterDelete_createsFreshProfile() {
+        val repo = InMemoryUserRepository(listOf(User(userId = "device-1", name = "Jane")))
+        repo.deleteUser("device-1", {}, { fail("unexpected failure: $it") })
+
+        var result: User? = null
+        repo.getOrCreateUser("device-1", { result = it }, { fail("unexpected failure: $it") })
+
+        assertEquals("", result?.name)
+    }
+
+    @Test
+    fun deleteUser_reportsFailureAndKeepsProfile() {
+        val repo = InMemoryUserRepository(listOf(User(userId = "device-1")))
+        repo.failWith = RuntimeException("offline")
+
+        var reported: Exception? = null
+        repo.deleteUser("device-1", { fail("should not succeed") }, { reported = it })
+
+        assertNotNull(reported)
+        assertNotNull(repo.peek("device-1"))
+    }
 }

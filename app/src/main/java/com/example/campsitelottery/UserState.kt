@@ -12,6 +12,12 @@ sealed interface UserState {
     /** The profile is loaded. */
     data class Ready(val user: User) : UserState
 
+    /**
+     * The user deleted their profile this session. A new empty profile is created
+     * the next time the app launches, or when they choose to create one.
+     */
+    data object Deleted : UserState
+
     /** The profile could not be loaded; [message] says why. */
     data class Failed(val message: String) : UserState
 }

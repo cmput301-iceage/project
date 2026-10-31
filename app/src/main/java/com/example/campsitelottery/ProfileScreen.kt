@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,13 +35,16 @@ import androidx.navigation.compose.rememberNavController
 
 /**
  * Shows the current device user's profile and lets them edit their name, email and
- * phone number (US 7.3), plus links to their reservations, notifications and lotteries.
+ * phone number (US 7.3) or delete their profile (US 8.1), plus links to their
+ * reservations, notifications and lotteries.
  *
  * @param navController used to go back and to open the linked screens.
  * @param userState the current user's profile, as loaded by [CampsiteLotteryApp].
  * @param userRepository where profile changes are saved.
  * @param onUserUpdated called with the updated user after a change is saved.
- * @param onRetry called when the user asks to retry after the profile failed to load.
+ * @param onUserDeleted called after the profile has been deleted.
+ * @param onRetry called to load the profile again: after a failed load, or to create
+ *   a fresh profile after deleting one.
  */
 @Composable
 fun ProfileScreen(
@@ -47,9 +52,35 @@ fun ProfileScreen(
     userState: UserState,
     userRepository: UserRepository,
     onUserUpdated: (User) -> Unit,
+    onUserDeleted: () -> Unit,
     onRetry: () -> Unit = {},
 ) {
     var isEditing by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
+
+    if (showDeleteDialog && userState is UserState.Ready) {
+        DeleteProfileDialog(
+            onConfirm = {
+                showDeleteDialog = false
+                isDeleting = true
+                deleteError = null
+                userRepository.deleteUser(
+                    userState.user.userId,
+                    onSuccess = {
+                        isDeleting = false
+                        onUserDeleted()
+                    },
+                    onFailure = {
+                        isDeleting = false
+                        deleteError = "Couldn't delete your profile: ${it.message}"
+                    },
+                )
+            },
+            onDismiss = { showDeleteDialog = false },
+        )
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -74,14 +105,17 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
-                onClick = { }, //TODO: make it actually delete the profile
+                onClick = { showDeleteDialog = true },
+                enabled = userState is UserState.Ready && !isDeleting,
                 shape = RectangleShape,
-
+                modifier = Modifier.testTag("deleteProfileButton"),
                 ) {
-                Text("Delete Profile")
+                Text(if (isDeleting) "Deleting..." else "Delete Profile")
             }
 
         }
+
+        deleteError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -90,6 +124,16 @@ fun ProfileScreen(
         ) {
             when (userState) {
                 is UserState.Loading -> Text("Loading profile...")
+                is UserState.Deleted -> {
+                    Text("Your profile has been deleted.")
+                    Button(
+                        onClick = onRetry,
+                        shape = RectangleShape,
+                        modifier = Modifier.testTag("createProfileButton"),
+                    ) {
+                        Text("Create New Profile")
+                    }
+                }
                 is UserState.Failed -> {
                     Text(
                         "Couldn't load your profile: ${userState.message}",
@@ -185,6 +229,26 @@ fun ProfileScreen(
 
 
     }
+}
+
+/** Asks the user to confirm before their profile is permanently deleted. */
+@Composable
+private fun DeleteProfileDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete profile?") },
+        text = { Text("This permanently deletes your name, email and phone number. This can't be undone.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm, modifier = Modifier.testTag("confirmDeleteButton")) {
+                Text("Delete", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("cancelDeleteButton")) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 /** Read-only view of a user's contact details. Blank fields show as "Not set". */
@@ -320,5 +384,6 @@ fun ProfileScreenPreview() {
         userState = UserState.Ready(user),
         userRepository = remember { InMemoryUserRepository(listOf(user)) },
         onUserUpdated = {},
+        onUserDeleted = {},
     )
 }

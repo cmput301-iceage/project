@@ -57,6 +57,19 @@ class FirestoreUserRepository(
             .addOnFailureListener(onFailure)
     }
 
+    // TODO: once the waitlist/reservation schema (#198) lands, also remove this
+    //  user from any waitlists they joined so they can't win a lottery after deleting.
+    override fun deleteUser(
+        userId: String,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        users.document(userId)
+            .delete()
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener(onFailure)
+    }
+
     companion object {
         /** Name of the Firestore collection that holds user profiles. */
         const val USERS_COLLECTION = "users"

@@ -43,4 +43,14 @@ class InMemoryUserRepository(initialUsers: List<User> = emptyList()) : UserRepos
         users[userId] = user.copy(name = name, email = email, phoneNumber = phoneNumber)
         onSuccess()
     }
+
+    override fun deleteUser(
+        userId: String,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        failWith?.let { return onFailure(it) }
+        users.remove(userId)
+        onSuccess()
+    }
 }

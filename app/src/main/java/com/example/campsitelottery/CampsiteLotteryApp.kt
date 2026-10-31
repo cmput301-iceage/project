@@ -49,6 +49,10 @@ fun CampsiteLotteryApp(
                 userState = userState,
                 userRepository = userRepository,
                 onUserUpdated = { userState = UserState.Ready(it) },
+                onUserDeleted = {
+                    userState = UserState.Deleted
+                    navController.popBackStack("home", inclusive = false)
+                },
                 onRetry = loadUser,
             )
         }

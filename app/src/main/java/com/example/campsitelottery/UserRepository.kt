@@ -48,4 +48,18 @@ interface UserRepository {
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit,
     )
+
+    /**
+     * Permanently deletes the profile stored under [userId] (US 8.1). Succeeds even
+     * if the profile does not exist.
+     *
+     * @param userId the profile to delete.
+     * @param onSuccess called once the profile is gone.
+     * @param onFailure receives the error if the profile could not be deleted.
+     */
+    fun deleteUser(
+        userId: String,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit,
+    )
 }
