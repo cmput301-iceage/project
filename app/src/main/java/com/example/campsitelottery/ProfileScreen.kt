@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,16 +22,20 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 
+/**
+ * Shows the current device user's profile, plus links to their reservations,
+ * notifications and lotteries.
+ *
+ * @param navController used to go back and to open the linked screens.
+ * @param userState the current user's profile, as loaded by [CampsiteLotteryApp].
+ * @param onRetry called when the user asks to retry after the profile failed to load.
+ */
 @Composable
 fun ProfileScreen(
-    navController : NavController
+    navController : NavController,
+    userState: UserState,
+    onRetry: () -> Unit = {},
 ) {
-    // Format Screen Here
-    //TODO: connect these to the objects/model storing these values
-    var profileName  = ""
-    var profileEmail = ""
-    var profilePhoneNum = ""
-
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
 
@@ -66,13 +71,19 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().testTag("profileInfo")
         ) {
-            //TODO: copy whats on the UI
-            //TODO: add edit buttons
-            Text("Name: FILLER")
-            Text("Email: FILLER")
-            Text("Phone Number: FILLER")
+            when (userState) {
+                is UserState.Loading -> Text("Loading profile...")
+                is UserState.Failed -> {
+                    Text(
+                        "Couldn't load your profile: ${userState.message}",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Button(onClick = onRetry, shape = RectangleShape) { Text("Retry") }
+                }
+                is UserState.Ready -> ProfileDetails(userState.user)
+            }
         }
 
         Spacer(modifier = Modifier.height(200.dp))
@@ -140,9 +151,23 @@ fun ProfileScreen(
     }
 }
 
+/** Read-only view of a user's contact details. Blank fields show as "Not set". */
+@Composable
+private fun ProfileDetails(user: User) {
+    Text("Name: ${user.name.ifBlank { "Not set" }}")
+    Text("Email: ${user.email?.ifBlank { null } ?: "Not set"}")
+    Text("Phone Number: ${user.phoneNumber?.ifBlank { null } ?: "Not set"}")
+}
+
+/** Preview of [ProfileScreen] with sample data, no Firebase required. */
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
     val dummyNav = rememberNavController()
-    ProfileScreen(dummyNav)
+    ProfileScreen(
+        dummyNav,
+        userState = UserState.Ready(
+            User(userId = "preview", name = "Jane Camper", email = "jane@example.com")
+        ),
+    )
 }
