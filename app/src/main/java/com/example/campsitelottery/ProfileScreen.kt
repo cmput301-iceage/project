@@ -1,6 +1,9 @@
 package com.example.campsitelottery
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,8 +44,9 @@ import androidx.navigation.compose.rememberNavController
  * @param navController used to go back and to open the linked screens.
  * @param userState the current user's profile, as loaded by [CampsiteLotteryApp].
  * @param userRepository where profile changes are saved.
- * @param onUserUpdated called with the updated user after a profile change or
- *   notification preference is saved.
+ * @param onUserChanged called after a profile change or notification preference is
+ *   saved, with a function that applies that change to a [User]. The caller applies
+ *   it to its latest copy of the user, so overlapping saves don't undo each other.
  * @param onUserDeleted called after the profile has been deleted.
  * @param onRetry called to load the profile again: after a failed load, or to create
  *   a fresh profile after deleting one.
@@ -52,7 +56,7 @@ fun ProfileScreen(
     navController : NavController,
     userState: UserState,
     userRepository: UserRepository,
-    onUserUpdated: (User) -> Unit,
+    onUserChanged: ((User) -> User) -> Unit,
     onUserDeleted: () -> Unit,
     onRetry: () -> Unit = {},
 ) {
@@ -72,7 +76,7 @@ fun ProfileScreen(
             enabled,
             onSuccess = {
                 isSavingNotifications = false
-                onUserUpdated(user.copy(notificationsEnabled = enabled))
+                onUserChanged { it.copy(notificationsEnabled = enabled) }
             },
             onFailure = {
                 isSavingNotifications = false
@@ -104,7 +108,13 @@ fun ProfileScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        // Scrollable + imePadding so the edit form's Save button stays reachable in
+        // landscape, with large fonts, or with the keyboard open.
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
 
         ) {
 
@@ -167,8 +177,8 @@ fun ProfileScreen(
                         EditProfileForm(
                             user = userState.user,
                             userRepository = userRepository,
-                            onSaved = {
-                                onUserUpdated(it)
+                            onSaved = { change ->
+                                onUserChanged(change)
                                 isEditing = false
                             },
                             onCancel = { isEditing = false },
@@ -223,7 +233,7 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(32.dp))
 
         notificationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
@@ -289,13 +299,14 @@ private fun ProfileDetails(user: User) {
 
 /**
  * Form for editing a user's contact details. Validates with [ProfileValidator] and
- * saves through [userRepository]; [onSaved] receives the updated user.
+ * saves through [userRepository]; [onSaved] receives a function that applies the
+ * saved change to a [User].
  */
 @Composable
 private fun EditProfileForm(
     user: User,
     userRepository: UserRepository,
-    onSaved: (User) -> Unit,
+    onSaved: ((User) -> User) -> Unit,
     onCancel: () -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf(user.name) }
@@ -321,7 +332,7 @@ private fun EditProfileForm(
             phoneNumber = newPhone,
             onSuccess = {
                 isSaving = false
-                onSaved(user.copy(name = newName, email = newEmail, phoneNumber = newPhone))
+                onSaved { it.copy(name = newName, email = newEmail, phoneNumber = newPhone) }
             },
             onFailure = {
                 isSaving = false
@@ -411,7 +422,7 @@ fun ProfileScreenPreview() {
         dummyNav,
         userState = UserState.Ready(user),
         userRepository = remember { InMemoryUserRepository(listOf(user)) },
-        onUserUpdated = {},
+        onUserChanged = {},
         onUserDeleted = {},
     )
 }

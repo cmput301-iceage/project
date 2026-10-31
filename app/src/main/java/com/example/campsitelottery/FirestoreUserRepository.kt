@@ -22,7 +22,14 @@ class FirestoreUserRepository(
         val doc = users.document(userId)
         doc.get()
             .addOnSuccessListener { snapshot ->
-                val existing = snapshot.toObject(User::class.java)
+                // Exceptions thrown in a success listener don't reach the failure
+                // listener; they crash the app. Route bad documents to onFailure.
+                val existing = try {
+                    snapshot.toObject(User::class.java)
+                } catch (e: RuntimeException) {
+                    onFailure(e)
+                    return@addOnSuccessListener
+                }
                 if (existing != null) {
                     onSuccess(existing)
                     return@addOnSuccessListener

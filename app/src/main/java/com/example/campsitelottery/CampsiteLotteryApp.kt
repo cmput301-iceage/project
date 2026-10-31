@@ -48,10 +48,18 @@ fun CampsiteLotteryApp(
                 navController = navController,
                 userState = userState,
                 userRepository = userRepository,
-                onUserUpdated = { userState = UserState.Ready(it) },
+                onUserChanged = { change ->
+                    // Apply to the latest user, not the one the screen captured, so
+                    // overlapping saves (e.g. edit + notification toggle) don't undo each other.
+                    (userState as? UserState.Ready)?.let { userState = UserState.Ready(change(it.user)) }
+                },
                 onUserDeleted = {
                     userState = UserState.Deleted
-                    navController.popBackStack("home", inclusive = false)
+                    // The delete can complete late (e.g. after reconnecting); only leave
+                    // the profile screen if the user is still on it.
+                    if (navController.currentDestination?.route == "profile") {
+                        navController.popBackStack("home", inclusive = false)
+                    }
                 },
                 onRetry = loadUser,
             )
