@@ -47,6 +47,8 @@ fun CampsiteLotteryApp(
             ProfileScreen(
                 navController = navController,
                 userState = userState,
+                userRepository = userRepository,
+                onUserUpdated = { userState = UserState.Ready(it) },
                 onRetry = loadUser,
             )
         }

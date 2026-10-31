@@ -1,6 +1,7 @@
 package com.example.campsitelottery
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -46,5 +47,41 @@ class InMemoryUserRepositoryTest {
 
         assertSame(error, reported)
         assertNull(repo.peek("device-1"))
+    }
+
+    @Test
+    fun updateContactInfo_changesOnlyContactFields() {
+        val existing = User(userId = "device-1", name = "Old", isOwner = true, notificationsEnabled = false)
+        val repo = InMemoryUserRepository(listOf(existing))
+
+        var saved = false
+        repo.updateContactInfo(
+            "device-1", "Jane", "jane@example.com", "7805550123",
+            onSuccess = { saved = true },
+            onFailure = { fail("unexpected failure: $it") },
+        )
+
+        assertTrue(saved)
+        val stored = repo.peek("device-1")!!
+        assertEquals("Jane", stored.name)
+        assertEquals("jane@example.com", stored.email)
+        assertEquals("7805550123", stored.phoneNumber)
+        assertTrue(stored.isOwner)
+        assertFalse(stored.notificationsEnabled)
+    }
+
+    @Test
+    fun updateContactInfo_failsForMissingProfile() {
+        val repo = InMemoryUserRepository()
+
+        var reported: Exception? = null
+        repo.updateContactInfo(
+            "nobody", "Jane", "jane@example.com", null,
+            onSuccess = { fail("should not succeed") },
+            onFailure = { reported = it },
+        )
+
+        assertNotNull(reported)
+        assertNull(repo.peek("nobody"))
     }
 }

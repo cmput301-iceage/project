@@ -9,33 +9,48 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 
 /**
- * Shows the current device user's profile, plus links to their reservations,
- * notifications and lotteries.
+ * Shows the current device user's profile and lets them edit their name, email and
+ * phone number (US 7.3), plus links to their reservations, notifications and lotteries.
  *
  * @param navController used to go back and to open the linked screens.
  * @param userState the current user's profile, as loaded by [CampsiteLotteryApp].
+ * @param userRepository where profile changes are saved.
+ * @param onUserUpdated called with the updated user after a change is saved.
  * @param onRetry called when the user asks to retry after the profile failed to load.
  */
 @Composable
 fun ProfileScreen(
     navController : NavController,
     userState: UserState,
+    userRepository: UserRepository,
+    onUserUpdated: (User) -> Unit,
     onRetry: () -> Unit = {},
 ) {
+    var isEditing by rememberSaveable { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
 
@@ -82,7 +97,28 @@ fun ProfileScreen(
                     )
                     Button(onClick = onRetry, shape = RectangleShape) { Text("Retry") }
                 }
-                is UserState.Ready -> ProfileDetails(userState.user)
+                is UserState.Ready ->
+                    if (isEditing) {
+                        EditProfileForm(
+                            user = userState.user,
+                            userRepository = userRepository,
+                            onSaved = {
+                                onUserUpdated(it)
+                                isEditing = false
+                            },
+                            onCancel = { isEditing = false },
+                        )
+                    } else {
+                        ProfileDetails(userState.user)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { isEditing = true },
+                            shape = RectangleShape,
+                            modifier = Modifier.testTag("editProfileButton"),
+                        ) {
+                            Text("Edit Profile")
+                        }
+                    }
             }
         }
 
@@ -159,15 +195,130 @@ private fun ProfileDetails(user: User) {
     Text("Phone Number: ${user.phoneNumber?.ifBlank { null } ?: "Not set"}")
 }
 
+/**
+ * Form for editing a user's contact details. Validates with [ProfileValidator] and
+ * saves through [userRepository]; [onSaved] receives the updated user.
+ */
+@Composable
+private fun EditProfileForm(
+    user: User,
+    userRepository: UserRepository,
+    onSaved: (User) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf(user.name) }
+    var email by rememberSaveable { mutableStateOf(user.email.orEmpty()) }
+    var phone by rememberSaveable { mutableStateOf(user.phoneNumber.orEmpty()) }
+    var errors by remember { mutableStateOf(ProfileInputErrors()) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    var isSaving by remember { mutableStateOf(false) }
+
+    fun save() {
+        errors = ProfileValidator.validate(name, email, phone)
+        if (!errors.isValid) return
+
+        val newName = ProfileValidator.normalizeName(name)
+        val newEmail = ProfileValidator.normalizeEmail(email)
+        val newPhone = ProfileValidator.normalizePhone(phone)
+        isSaving = true
+        saveError = null
+        userRepository.updateContactInfo(
+            userId = user.userId,
+            name = newName,
+            email = newEmail,
+            phoneNumber = newPhone,
+            onSuccess = {
+                isSaving = false
+                onSaved(user.copy(name = newName, email = newEmail, phoneNumber = newPhone))
+            },
+            onFailure = {
+                isSaving = false
+                saveError = "Couldn't save your profile: ${it.message}"
+            },
+        )
+    }
+
+    ProfileTextField(
+        label = "Name",
+        value = name,
+        onValueChange = { name = it },
+        error = errors.name,
+        keyboardType = KeyboardType.Text,
+        tag = "nameField",
+    )
+    ProfileTextField(
+        label = "Email",
+        value = email,
+        onValueChange = { email = it },
+        error = errors.email,
+        keyboardType = KeyboardType.Email,
+        tag = "emailField",
+    )
+    ProfileTextField(
+        label = "Phone Number (optional)",
+        value = phone,
+        onValueChange = { phone = it },
+        error = errors.phoneNumber,
+        keyboardType = KeyboardType.Phone,
+        tag = "phoneField",
+    )
+
+    saveError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+    Spacer(modifier = Modifier.height(8.dp))
+    Row {
+        Button(
+            onClick = ::save,
+            enabled = !isSaving,
+            shape = RectangleShape,
+            modifier = Modifier.testTag("saveProfileButton"),
+        ) {
+            Text(if (isSaving) "Saving..." else "Save")
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        OutlinedButton(
+            onClick = onCancel,
+            enabled = !isSaving,
+            shape = RectangleShape,
+            modifier = Modifier.testTag("cancelEditButton"),
+        ) {
+            Text("Cancel")
+        }
+    }
+}
+
+/** Single-line text field that shows [error] underneath when it is non-null. */
+@Composable
+private fun ProfileTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    error: String?,
+    keyboardType: KeyboardType,
+    tag: String,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        isError = error != null,
+        supportingText = error?.let { { Text(it) } },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        modifier = Modifier.fillMaxWidth().testTag(tag),
+    )
+}
+
 /** Preview of [ProfileScreen] with sample data, no Firebase required. */
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
     val dummyNav = rememberNavController()
+    val user = User(userId = "preview", name = "Jane Camper", email = "jane@example.com")
     ProfileScreen(
         dummyNav,
-        userState = UserState.Ready(
-            User(userId = "preview", name = "Jane Camper", email = "jane@example.com")
-        ),
+        userState = UserState.Ready(user),
+        userRepository = remember { InMemoryUserRepository(listOf(user)) },
+        onUserUpdated = {},
     )
 }

@@ -29,4 +29,18 @@ class InMemoryUserRepository(initialUsers: List<User> = emptyList()) : UserRepos
         val user = users.getOrPut(userId) { User(userId = userId) }
         onSuccess(user.copy())
     }
+
+    override fun updateContactInfo(
+        userId: String,
+        name: String,
+        email: String,
+        phoneNumber: String?,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        failWith?.let { return onFailure(it) }
+        val user = users[userId] ?: return onFailure(NoSuchElementException("No profile for $userId"))
+        users[userId] = user.copy(name = name, email = email, phoneNumber = phoneNumber)
+        onSuccess()
+    }
 }

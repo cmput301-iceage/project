@@ -35,6 +35,28 @@ class FirestoreUserRepository(
             .addOnFailureListener(onFailure)
     }
 
+    override fun updateContactInfo(
+        userId: String,
+        name: String,
+        email: String,
+        phoneNumber: String?,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        // update() (not set()) so only these fields change, and it fails if the
+        // profile was deleted instead of silently recreating it.
+        users.document(userId)
+            .update(
+                mapOf(
+                    "name" to name,
+                    "email" to email,
+                    "phoneNumber" to phoneNumber,
+                )
+            )
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener(onFailure)
+    }
+
     companion object {
         /** Name of the Firestore collection that holds user profiles. */
         const val USERS_COLLECTION = "users"

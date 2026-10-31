@@ -25,4 +25,27 @@ interface UserRepository {
         onSuccess: (User) -> Unit,
         onFailure: (Exception) -> Unit,
     )
+
+    /**
+     * Updates the contact details on an existing profile (US 7.3). Other fields,
+     * such as roles and notification preference, are left untouched.
+     *
+     * Callers should validate and normalize input with [ProfileValidator] first.
+     *
+     * @param userId the profile to update.
+     * @param name the new name.
+     * @param email the new email address.
+     * @param phoneNumber the new phone number, or null to clear it.
+     * @param onSuccess called once the change is saved.
+     * @param onFailure receives the error if the profile could not be updated,
+     *   including when it does not exist.
+     */
+    fun updateContactInfo(
+        userId: String,
+        name: String,
+        email: String,
+        phoneNumber: String?,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit,
+    )
 }
