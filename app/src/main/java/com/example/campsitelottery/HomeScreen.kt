@@ -33,12 +33,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-
+import com.example.campsitelottery.UserState
 
 
 @Composable
 fun HomeScreen(
-    navController : NavController
+    navController : NavController,
+    userState : UserState,
+    userRepository : UserRepository
 ) {
 
     val dummyCampsite = mutableListOf<String>("Campsite 1", "Campsite 2", "Campsite 3")
@@ -58,22 +60,30 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Button(
-                onClick = {}, //TODO: Navigate to admin screen
-                shape = RectangleShape,
 
-            ) {
-                Text("ADMIN")
+            // hide button if user is not an `admin`
+            if (userState is UserState.Ready && userState.user.isAdmin) {
+
+                Button(
+                    onClick = {navController.navigate("adminDashboard")},
+                    shape = RectangleShape,
+
+                    ) {
+                    Text("ADMIN")
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            Button(
-                onClick = {}, //TODO: Navigate to owner screen
-                shape = RectangleShape,
+            // hide button if user is not an `owner`
+            if (userState is UserState.Ready && userState.user.isOwner) {
+                Button(
+                    onClick = {}, //TODO: Navigate to owner screen
+                    shape = RectangleShape,
 
-            ) {
-                Text("Owner")
+                    ) {
+                    Text("Owner")
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -168,5 +178,10 @@ fun HomeScreen(
 @Composable
 fun HomeScreenPreview() {
     val dummyNav = rememberNavController()
-    HomeScreen(dummyNav)
+    val user = User(userId = "preview", name = "Jane Camper", email = "jane@example.com")
+    HomeScreen(
+        dummyNav,
+            userState = UserState.Ready(user),
+            userRepository = remember { InMemoryUserRepository(listOf(user)) },
+        )
 }

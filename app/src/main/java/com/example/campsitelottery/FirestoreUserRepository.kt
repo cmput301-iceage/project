@@ -1,6 +1,7 @@
 package com.example.campsitelottery
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 
 /**
  * [UserRepository] backed by the Firestore `users` collection, with one document per
@@ -87,6 +88,29 @@ class FirestoreUserRepository(
             .update("notificationsEnabled", enabled)
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener(onFailure)
+    }
+
+
+
+    override fun getUsers(
+        onSuccess: (List<Map<String, Any>>) -> Unit,
+        onFailure: (Exception) -> Unit,
+    ): ListenerRegistration {
+        return users.addSnapshotListener { snapshot, error ->
+
+            if (error != null) {
+                onFailure(error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                val userList = snapshot.documents.map { document ->
+                    document.data.orEmpty() + ("userId" to document.id)
+                }
+
+                onSuccess(userList)
+            }
+        }
     }
 
     companion object {

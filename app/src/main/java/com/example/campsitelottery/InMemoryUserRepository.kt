@@ -1,5 +1,7 @@
 package com.example.campsitelottery
 
+import com.google.firebase.firestore.ListenerRegistration
+
 /**
  * [UserRepository] that keeps profiles in memory. Callbacks run synchronously.
  *
@@ -65,4 +67,9 @@ class InMemoryUserRepository(initialUsers: List<User> = emptyList()) : UserRepos
         users[userId] = user.copy(notificationsEnabled = enabled)
         onSuccess()
     }
+
+    override fun getUsers(
+        onSuccess: (List<Map<String, Any>>) -> Unit,
+        onFailure: (Exception) -> Unit,
+    ): ListenerRegistration { return ListenerRegistration() {}}
 }

@@ -42,7 +42,13 @@ fun CampsiteLotteryApp(
     LaunchedEffect(deviceId) { loadUser() }
 
     NavHost(navController = navController, startDestination = "home") {
-        composable("home") { HomeScreen(navController) }
+        composable("home") {
+            HomeScreen(
+                navController,
+                userState = userState,
+                userRepository = userRepository
+            )
+        }
         composable("profile") {
             ProfileScreen(
                 navController = navController,
@@ -69,5 +75,23 @@ fun CampsiteLotteryApp(
         composable("notification") { NotificationScreen(navController) }
         composable("reservation") { ReservationScreen(navController) }
         composable("campsiteInfo") { CampsiteInfoScreen(navController) }
+        composable("adminDashboard") {
+            AdminDashboardScreen(
+                navController,
+                userState = userState,
+                userRepository = userRepository
+            )}
+        composable("adminNotifications") {AdminNotificationLogScreen(navController)}
+        composable("adminProfiles") {
+            AdminProfilesScreen(
+                navController,
+                userState = userState,
+                userRepository = userRepository
+            )}
+        composable("adminCampsites") {AdminCampsitesScreen(navController)}
+        composable("adminImages") {AdminImagesScreen(navController)}
+        composable("adminMessages") {AdminMessagesScreen(navController)}
     }
 }
+
+
