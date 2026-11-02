@@ -15,7 +15,7 @@ class OwnerCampsiteTest {
     val composeTestRule = createComposeRule()
 
     /**
-     * Tests US 02.01.01 Register campsite and US 02.01.02 Provide campsite details:
+     * Tests Register campsite and US Provide campsite details:
      * Verifies that a user can navigate from the Home screen to the Owner Dashboard,
      * open the registration form, input campsite details, and view publishing controls.
      */

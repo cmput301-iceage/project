@@ -7,13 +7,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.google.firebase.firestore.FirebaseFirestore
+import com.example.campsitelottery.DeviceIdentity
+
 
 @Composable
 fun RegisterCampsiteScreen(navController: NavController) {
+
+    val context = LocalContext.current
+
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
@@ -66,6 +72,7 @@ fun RegisterCampsiteScreen(navController: NavController) {
 
         Button(
             onClick = {
+                val deviceId = DeviceIdentity.getDeviceId(context)
                 // Construct the Campsite object using your existing model class
                 val newCampsite = Campsite(
                     name = name,
@@ -76,7 +83,7 @@ fun RegisterCampsiteScreen(navController: NavController) {
                     rules = rules,
                     cancellationPolicy = cancellationPolicy,
                     tags = tagsInput.split(",").map { it.trim() }.filter { it.isNotEmpty() },
-                    ownerId = "CURRENT_USER_ID" // Replace with actual logged-in user identifier
+                    ownerId = deviceId // Replace with actual logged-in user identifier
                 )
 
                 // Save to Firestore collection "campsites"

@@ -1,26 +1,61 @@
 package com.example.campsitelottery
 
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
 fun OwnerDashboardScreen(navController: NavController) {
-    // TODO: Replace with real data fetched from Firestore filtered by current owner's ID
+    val context = LocalContext.current
+
+    // Retrieve the unique device ID to identify the owner (US 01.09.01)
+    val deviceId = remember {
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown_device"
+    }
+
     var myCampsites by remember { mutableStateOf(listOf<Campsite>()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Fetch campsites from Firestore in real-time filtered by this owner's device ID
+    LaunchedEffect(deviceId) {
+        val db = FirebaseFirestore.getInstance()
+        db.collection("campsites")
+            .whereEqualTo("ownerId", deviceId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    isLoading = false
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    // Map Firestore documents to your Campsite data class
+                    val campsites = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(Campsite::class.java)
+                    }
+                    myCampsites = campsites
+                    isLoading = false
+                }
+            }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Button(onClick = { navController.popBackStack() }, shape = RectangleShape) {
                 Text("Back")
             }
@@ -33,21 +68,36 @@ fun OwnerDashboardScreen(navController: NavController) {
         Text("My Campsites", fontSize = 28.sp)
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(myCampsites) { campsite ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .clickable {
-                            // Navigate to view/edit details for this campsite
-                            navController.navigate("campsiteDetail/${campsite.campsiteId}")
+        // Handle loading, empty, and populated states
+        when {
+            isLoading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            myCampsites.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("You haven't registered any campsites yet.", fontSize = 16.sp)
+                }
+            }
+            else -> {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(myCampsites) { campsite ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .clickable {
+                                    // Optional: Navigate to detail/edit screen passing ID
+                                    // navController.navigate("campsiteDetail/${campsite.campsiteId}")
+                                }
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(text = campsite.name, fontSize = 20.sp)
+                                Text(text = "Location: ${campsite.address}")
+                                Text(text = "Max Occupancy: ${campsite.maxOccupancy} | Price: $${campsite.pricePerNight}/night")
+                            }
                         }
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = campsite.name, fontSize = 20.sp)
-                        Text(text = "Location: ${campsite.address}")
-                        Text(text = "Max Occupancy: ${campsite.maxOccupancy} | Price: $${campsite.pricePerNight}/night")
                     }
                 }
             }
@@ -57,7 +107,7 @@ fun OwnerDashboardScreen(navController: NavController) {
 
 @Preview(showBackground = true)
 @Composable
-fun RegisterCampsiteScreenPreview() {
+fun OwnerDashboardScreenPreview() {
     val dummyNav = rememberNavController()
-    RegisterCampsiteScreen(dummyNav)
+    OwnerDashboardScreen(dummyNav)
 }
