@@ -17,5 +17,7 @@ fun CampsiteLotteryApp() {
         composable("notification") { NotificationScreen(navController) }
         composable("reservation") { ReservationScreen(navController) }
         composable("campsiteInfo") { CampsiteInfoScreen(navController) }
+        composable("ownerDashboard") { OwnerDashboardScreen(navController) }
+        composable("registerCampsite") { RegisterCampsiteScreen(navController) }
     }
 }

@@ -69,9 +69,8 @@ fun HomeScreen(
             Spacer(modifier = Modifier.width(16.dp))
 
             Button(
-                onClick = {}, //TODO: Navigate to owner screen
+                onClick = { navController.navigate("ownerDashboard") },
                 shape = RectangleShape,
-
             ) {
                 Text("Owner")
             }
