@@ -1,5 +1,7 @@
 package com.example.campsitelottery
 
+import com.google.firebase.firestore.ListenerRegistration
+
 /**
  * Reads and writes [User] profiles.
  *
@@ -80,4 +82,20 @@ interface UserRepository {
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit,
     )
+
+    /**
+     * Listens for changes to the Firestore users collection and retrieves
+     * an updated list of users whenever a document is added, modified, or deleted.
+     *
+     * Each user is represented as a map containing their document fields
+     * and their Firestore document ID under the key "userId".
+     *
+     * @param onSuccess callback invoked whenever the user collection changes.
+     * @param onFailure callback invoked if the listener encounters an error.
+     * @return A ListenerRegistration that can be used to stop listening.
+     */
+    fun getUsers(
+        onSuccess: (List<Map<String, Any>>) -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) : ListenerRegistration
 }

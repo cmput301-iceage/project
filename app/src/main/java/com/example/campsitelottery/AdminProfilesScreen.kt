@@ -1,0 +1,289 @@
+package com.example.campsitelottery
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+
+@Composable
+fun AdminProfilesScreen(
+    navController: NavController,
+    userState: UserState,
+    userRepository: UserRepository
+) {
+
+    val backgroundColor = Color(0xFFFEFAE0)
+    val buttonColor = Color(0xFF283618)
+
+    var searchText by remember { mutableStateOf("") }
+    val profiles = remember { mutableStateListOf<Map<String, Any>>() }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var selectedProfile by remember { mutableStateOf<String>("") }
+
+
+    // get all profiles, fetch live changes
+    DisposableEffect(userRepository) {
+
+        val listener = userRepository.getUsers(
+            onSuccess = { users ->
+                profiles.clear()
+                profiles.addAll(users)
+            },
+            onFailure = { exception ->
+                errorMessage = exception.message
+            }
+        )
+
+        onDispose {
+            listener.remove()
+        }
+    }
+
+    // filter profiles
+    val filteredProfiles = profiles.filter { profile ->
+
+        val name = profile["name"] as? String ?: ""
+        val email = profile["email"] as? String ?: ""
+        val phoneNumber = profile["phoneNumber"] as? String ?: ""
+
+        name.contains(searchText, ignoreCase = true) ||
+                email.contains(searchText, ignoreCase = true) ||
+                phoneNumber.contains(searchText, ignoreCase = true)
+    }
+
+
+    //Column to display all the users
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(backgroundColor)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+
+        ) {
+
+        // Row for back button, header and notif log
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = { navController.popBackStack() },
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = buttonColor
+                ),
+                modifier = Modifier
+                    .testTag("backButton")
+
+            ) {
+                Text("< Back")
+            }
+
+            Text(
+                text = "Profiles",
+                fontSize = 35.sp
+            )
+
+
+
+            Button(
+                onClick = {
+                    if (selectedProfile.isNotEmpty() && userState is UserState.Ready) {
+                        userRepository.deleteUser(
+                            selectedProfile,
+                            onSuccess = {
+                                selectedProfile = ""
+                            },
+                            onFailure = {
+                                selectedProfile = ""
+
+                            },
+                        )
+                    }
+                },
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = buttonColor
+                ),
+                modifier = Modifier.testTag("deleteButton")
+
+            ) {
+
+                Text("Delete")
+            }
+
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Search bar and filter button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BasicTextField(
+                value = searchText,
+                onValueChange = { searchText = it },
+                singleLine = true,
+                textStyle = TextStyle(
+                    fontSize = 16.sp,
+                    color = buttonColor,
+                    textAlign = TextAlign.Center
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(42.dp)
+                    .border(2.dp, buttonColor)
+                    .padding(8.dp)
+                    .wrapContentHeight(Alignment.CenterVertically),
+                decorationBox = { innerTextField ->
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (searchText.isEmpty()) {
+                            Text(
+                                "Search...",
+                                color = buttonColor,
+                                fontSize = 16.sp
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // LazyColumn for scrolling profiles view
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+        ) {
+
+            items(filteredProfiles) { profile ->
+                val profileName = profile["name"] as? String ?: "Unknown User"
+                val profileEmail = profile["email"] as? String ?: "No Email"
+                val profilePhoneNumber = profile["phoneNumber"] as? String ?: "No Number"
+                val userId = profile["userId"] as? String ?: "" // should never fail
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (selectedProfile == userId) {
+                                selectedProfile = ""
+                            }
+                            else {
+                                selectedProfile = userId
+                            }
+                        }
+                        .background(
+                            if (selectedProfile == userId)
+                                buttonColor.copy(alpha = 0.3f)
+                            else backgroundColor
+                        )
+                        .height(70.dp)
+                        .padding(horizontal = 12.dp)
+                        .border(1.dp, buttonColor),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            Text(profileName)
+                            Text(profileEmail)
+
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            Text(
+                                text = "Tel:$profilePhoneNumber"
+                            )
+
+
+                        }
+                    }
+
+
+
+                }
+            }
+
+
+        }
+
+    }
+}
+
+
+/** Preview of [AdminProfilesScreen] with sample data, no Firebase required. */
+@Preview(showBackground = true)
+@Composable
+fun AdminProfilesScreenPreview() {
+    val dummyNav = rememberNavController()
+    val user = User(userId = "preview", name = "Jane Camper", email = "jane@example.com")
+    AdminProfilesScreen(
+        dummyNav,
+        userState = UserState.Ready(user),
+        userRepository = remember { InMemoryUserRepository(listOf(user)) }
+    )
+}
