@@ -81,6 +81,8 @@ fun CampsiteLotteryApp(
                 userState = userState,
                 userRepository = userRepository
             )}
+        composable("ownerDashboard") {OwnerDashboardScreen(navController)}
+        composable("registerCampsite") {RegisterCampsiteScreen(navController)}
         composable("adminNotifications") {AdminNotificationLogScreen(navController)}
         composable("adminProfiles") {
             AdminProfilesScreen(

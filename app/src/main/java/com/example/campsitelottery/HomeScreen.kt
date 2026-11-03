@@ -78,9 +78,9 @@ fun HomeScreen(
             // hide button if user is not an `owner`
             if (userState is UserState.Ready && (userState.user.isOwner || userState.user.isAdmin)) {
                 Button(
-                    onClick = {}, //TODO: Navigate to owner screen
+                    onClick = {navController.navigate("ownerDashboard")},
                     shape = RectangleShape,
-
+                    modifier = Modifier.testTag("ownerButton")
                     ) {
                     Text("Owner")
                 }
