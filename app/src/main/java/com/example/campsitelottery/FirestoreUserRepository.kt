@@ -46,7 +46,7 @@ class FirestoreUserRepository(
     override fun updateContactInfo(
         userId: String,
         name: String,
-        email: String,
+        email: String?,
         phoneNumber: String?,
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit,

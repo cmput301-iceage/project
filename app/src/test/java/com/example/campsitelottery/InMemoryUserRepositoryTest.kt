@@ -86,6 +86,15 @@ class InMemoryUserRepositoryTest {
     }
 
     @Test
+    fun updateContactInfo_canClearEmail() {
+        val repo = InMemoryUserRepository(listOf(User(userId = "device-1", email = "jane@example.com")))
+
+        repo.updateContactInfo("device-1", "Jane", null, null, {}, { fail("unexpected failure: $it") })
+
+        assertNull(repo.peek("device-1")!!.email)
+    }
+
+    @Test
     fun deleteUser_removesProfile() {
         val repo = InMemoryUserRepository(listOf(User(userId = "device-1", name = "Jane")))
 

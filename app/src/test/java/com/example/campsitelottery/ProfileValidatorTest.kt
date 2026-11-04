@@ -29,8 +29,9 @@ class ProfileValidatorTest {
     }
 
     @Test
-    fun missingEmail_isRejected() {
-        assertEquals("Email is required", ProfileValidator.validate("Jane", " ", "").email)
+    fun missingEmail_isAllowed() {
+        assertTrue(ProfileValidator.validate("Jane", "", "").isValid)
+        assertTrue(ProfileValidator.validate("Jane", "   ", "").isValid)
     }
 
     @Test
@@ -54,6 +55,7 @@ class ProfileValidatorTest {
     fun normalize_trimsAndClearsBlankPhone() {
         assertEquals("Jane", ProfileValidator.normalizeName("  Jane "))
         assertEquals("jane@example.com", ProfileValidator.normalizeEmail(" jane@example.com "))
+        assertNull(ProfileValidator.normalizeEmail("   "))
         assertNull(ProfileValidator.normalizePhone("   "))
         assertEquals("780 555 0123", ProfileValidator.normalizePhone(" 780 555 0123 "))
     }

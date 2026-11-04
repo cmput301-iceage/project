@@ -20,7 +20,8 @@ data class ProfileInputErrors(
 /**
  * Validates and normalizes the contact details a user enters on their profile (US 7.3).
  *
- * Name and email are required; phone number is optional.
+ * Name is required. Email and phone number are optional, but must be well formed
+ * when given.
  */
 object ProfileValidator {
 
@@ -44,9 +45,8 @@ object ProfileValidator {
         return ProfileInputErrors(
             name = if (name.isBlank()) "Name is required" else null,
             email = when {
-                trimmedEmail.isEmpty() -> "Email is required"
-                !EMAIL_REGEX.matches(trimmedEmail) -> "Enter a valid email address"
-                else -> null
+                trimmedEmail.isEmpty() || EMAIL_REGEX.matches(trimmedEmail) -> null
+                else -> "Enter a valid email address"
             },
             phoneNumber = if (trimmedPhone.isEmpty() || isValidPhone(trimmedPhone)) null
             else "Enter a valid phone number",
@@ -56,8 +56,8 @@ object ProfileValidator {
     /** Trims [name] for storage. */
     fun normalizeName(name: String): String = name.trim()
 
-    /** Trims [email] for storage. */
-    fun normalizeEmail(email: String): String = email.trim()
+    /** Trims [email] for storage, turning a blank email into null. */
+    fun normalizeEmail(email: String): String? = email.trim().ifEmpty { null }
 
     /** Trims [phoneNumber] for storage, turning a blank phone number into null. */
     fun normalizePhone(phoneNumber: String): String? = phoneNumber.trim().ifEmpty { null }

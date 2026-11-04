@@ -35,7 +35,7 @@ class InMemoryUserRepository(initialUsers: List<User> = emptyList()) : UserRepos
     override fun updateContactInfo(
         userId: String,
         name: String,
-        email: String,
+        email: String?,
         phoneNumber: String?,
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit,
