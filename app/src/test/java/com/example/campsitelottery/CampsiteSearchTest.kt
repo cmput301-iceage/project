@@ -147,4 +147,20 @@ class CampsiteSearchTest {
     fun formatDate_usesUtcDay() {
         assertEquals("Nov 6, 2026", CampsiteSearch.formatDate(nov6, Locale.CANADA))
     }
+
+    // --- Filter summary (US 1.3) ---
+
+    @Test
+    fun describe_listsOnlyFiltersThatAreSet() {
+        assertEquals(emptyList<String>(), CampsiteSearch.describe(CampsiteFilter(query = "lake")))
+        assertEquals(
+            listOf("Jasper", "4+ guests", "Nov 6, 2026"),
+            CampsiteSearch.describe(CampsiteFilter(location = " Jasper ", guests = 4, dateMillis = nov6), Locale.CANADA),
+        )
+    }
+
+    @Test
+    fun describe_singularGuest() {
+        assertEquals(listOf("1 guest"), CampsiteSearch.describe(CampsiteFilter(guests = 1)))
+    }
 }

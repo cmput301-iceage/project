@@ -46,8 +46,8 @@ private val CampsiteFilterSaver = listSaver<CampsiteFilter, Any?>(
 
 /**
  * Home screen: lists every campsite and lets the user search them (US 1.1) and
- * filter them by location, number of guests and date (US 1.2). Tapping a campsite
- * opens its details.
+ * filter them by location, number of guests and date (US 1.2). Results are listed
+ * with a summary of the active filters (US 1.3). Tapping a campsite opens its details.
  *
  * @param navController used to open the profile, dashboards and campsite details.
  * @param userState the current user; decides whether the Admin and Owner buttons show.
@@ -200,12 +200,38 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            val activeFilters = CampsiteSearch.describe(filter)
             Button(
                 onClick = { showFilterDialog = true },
                 shape = RectangleShape,
                 modifier = Modifier.testTag("filterButton"),
             ) {
-                Text("Filter")
+                Text(if (activeFilters.isEmpty()) "Filter" else "Filter (${activeFilters.size})")
+            }
+        }
+
+        // Which filters are on and how many campsites match (US 1.3)
+        if (!isLoading && (filter.hasFilters || filter.query.isNotBlank())) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().testTag("filterSummary"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val count = shownCampsites.size
+                val summary = buildString {
+                    append(if (count == 1) "1 campsite" else "$count campsites")
+                    val labels = CampsiteSearch.describe(filter)
+                    if (labels.isNotEmpty()) append(" · ").append(labels.joinToString(" · "))
+                }
+                Text(summary, modifier = Modifier.weight(1f))
+                if (filter.hasFilters) {
+                    TextButton(
+                        onClick = { filter = filter.copy(location = "", guests = null, dateMillis = null) },
+                        modifier = Modifier.testTag("clearFiltersInlineButton"),
+                    ) {
+                        Text("Clear filters")
+                    }
+                }
             }
         }
 
@@ -228,6 +254,8 @@ fun HomeScreen(
                     Text(
                         if (filter.dateMillis != null && waitlistsFailed) {
                             "Couldn't load lottery dates to filter by date."
+                        } else if (filter.hasFilters) {
+                            "No campsites match these filters. Try clearing some."
                         } else {
                             "No campsites match your search."
                         },

@@ -99,6 +99,17 @@ object CampsiteSearch {
     /** True if [text] is blank or a positive whole number. */
     fun isValidGuestInput(text: String): Boolean = text.isBlank() || parseGuests(text) != null
 
+    /**
+     * Short labels for the filters that are set, shown above the results (US 1.3),
+     * e.g. `["Jasper", "4+ guests", "Nov 6, 2026"]`. The search text is not included.
+     */
+    fun describe(filter: CampsiteFilter, locale: Locale = Locale.getDefault()): List<String> =
+        listOfNotNull(
+            filter.location.trim().ifEmpty { null },
+            filter.guests?.let { if (it == 1) "1 guest" else "$it+ guests" },
+            filter.dateMillis?.let { formatDate(it, locale) },
+        )
+
     /** Formats a date-picker value (UTC midnight) as e.g. "Nov 6, 2026". */
     fun formatDate(dateMillis: Long, locale: Locale = Locale.getDefault()): String =
         SimpleDateFormat("MMM d, yyyy", locale)
