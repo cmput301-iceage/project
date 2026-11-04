@@ -74,7 +74,10 @@ fun CampsiteLotteryApp(
         composable("booking") { BookingScreen(navController) }
         composable("notification") { NotificationScreen(navController) }
         composable("reservation") { ReservationScreen(navController) }
-        composable("campsiteInfo") { CampsiteInfoScreen(navController) }
+        composable("campsiteInfo/{campsiteId}") { backStackEntry ->
+            val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
+            CampsiteInfoScreen(navController, campsiteId)
+        }
         composable("adminDashboard") {
             AdminDashboardScreen(
                 navController,
@@ -82,7 +85,13 @@ fun CampsiteLotteryApp(
                 userRepository = userRepository
             )}
         composable("ownerDashboard") {OwnerDashboardScreen(navController)}
-        composable("registerCampsite") {RegisterCampsiteScreen(navController)}
+        composable("registerCampsite") {
+            RegisterCampsiteScreen(navController, campsiteId = null)
+        }
+        composable("registerCampsite/{campsiteId}") { backStackEntry ->
+            val campsiteId = backStackEntry.arguments?.getString("campsiteId")
+            RegisterCampsiteScreen(navController, campsiteId = campsiteId)
+        }
         composable("adminNotifications") {AdminNotificationLogScreen(navController)}
         composable("adminProfiles") {
             AdminProfilesScreen(

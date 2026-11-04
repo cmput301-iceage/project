@@ -15,25 +15,21 @@ class OwnerCampsiteTest {
     val composeTestRule = createComposeRule()
 
     /**
-     * Tests Register campsite and US Provide campsite details:
-     * Verifies that a user can navigate from the Home screen to the Owner Dashboard,
-     * open the registration form, input campsite details, and view publishing controls.
+     * Tests US 02.01.01 & US 02.01.02:
+     * Verifies that the RegisterCampsiteScreen correctly displays all required input fields
+     * (name, description, address, occupancy, pricing, rules, policies, and tags) and
+     * allows a user to input text into them.
      */
     @Test
-    fun testRegisterCampsiteWorkflow() {
-        // Given the full app starting at the home screen
+    fun testRegisterCampsiteFormInputs() {
+        // Given the RegisterCampsiteScreen is loaded
         composeTestRule.setContent {
-            CampsiteLotteryApp()
+            val navController = rememberNavController()
+            RegisterCampsiteScreen(navController)
         }
 
-        // When the user clicks the "Owner" button on HomeScreen
-        composeTestRule.onNodeWithText("Owner").performClick()
-
-        // Then verify we are on the Owner Dashboard and click to register a new campsite
-        composeTestRule.onNodeWithText("My Campsites").assertExists()
-        composeTestRule.onNodeWithText("+ Register New Campsite").performClick()
-
-        // Then verify all input fields specified in US 02.01.02 are present
+        // Then verify all form fields and action buttons exist
+        composeTestRule.onNodeWithText("Register New Campsite").assertExists()
         composeTestRule.onNodeWithText("Campsite Name").assertExists()
         composeTestRule.onNodeWithText("Description & Amenities").assertExists()
         composeTestRule.onNodeWithText("Location / Address").assertExists()
@@ -42,33 +38,33 @@ class OwnerCampsiteTest {
         composeTestRule.onNodeWithText("Campsite Rules").assertExists()
         composeTestRule.onNodeWithText("Cancellation Policy").assertExists()
         composeTestRule.onNodeWithText("Tags (comma separated)").assertExists()
+        composeTestRule.onNodeWithText("Publish Campsite").assertExists()
 
-        // When the user inputs campsite details into the form
-        composeTestRule.onNodeWithText("Campsite Name").performTextInput("Jasper Pine Grove")
-        composeTestRule.onNodeWithText("Description & Amenities").performTextInput("Cookhouse and fire pit included")
-        composeTestRule.onNodeWithText("Location / Address").assertExists() // or standard text entry
+        // When the user types information into the fields
+        composeTestRule.onNodeWithText("Campsite Name").performTextInput("Jasper Pines")
         composeTestRule.onNodeWithText("Max Occupancy").performTextInput("6")
         composeTestRule.onNodeWithText("Price Per Night ($)").performTextInput("75.0")
         composeTestRule.onNodeWithText("Tags (comma separated)").performTextInput("Jasper, Hiking, Scenic")
 
-        // Then verify the publish action button is ready
-        composeTestRule.onNodeWithText("Publish Campsite").assertExists()
-        composeTestRule.onNodeWithText("Publish Campsite").assertIsEnabled()
+        // Then verify the inputs were successfully accepted and displayed
+        composeTestRule.onNodeWithText("Jasper Pines").assertExists()
+        composeTestRule.onNodeWithText("6").assertExists()
     }
 
     /**
-     * Tests 2.01.04 / US 02.03.01 View own campsite details and list:
-     * Verifies that the Owner Dashboard properly displays the list view layout for management.
+     * Tests US 02.01.04 & US 02.03.01:
+     * Verifies that the OwnerDashboardScreen properly displays header elements,
+     * the navigation back button, and the register trigger.
      */
     @Test
-    fun testOwnerDashboardDisplaysCampsiteList() {
-        // Given the OwnerDashboardScreen is loaded directly with a test NavController
+    fun testOwnerDashboardLayout() {
+        // Given the OwnerDashboardScreen is loaded
         composeTestRule.setContent {
             val navController = rememberNavController()
             OwnerDashboardScreen(navController)
         }
 
-        // Then verify the dashboard structural elements for viewing managed listings exist
+        // Then verify dashboard structural elements exist
         composeTestRule.onNodeWithText("My Campsites").assertExists()
         composeTestRule.onNodeWithText("+ Register New Campsite").assertExists()
         composeTestRule.onNodeWithText("Back").assertExists()

@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
@@ -14,10 +15,11 @@ import androidx.navigation.NavController
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.campsitelottery.DeviceIdentity
 
-
 @Composable
-fun RegisterCampsiteScreen(navController: NavController) {
-
+fun RegisterCampsiteScreen(
+    navController: NavController,
+    campsiteId: String? = null // Null = Registering new; Non-null = Editing existing
+) {
     val context = LocalContext.current
 
     var name by remember { mutableStateOf("") }
@@ -27,76 +29,145 @@ fun RegisterCampsiteScreen(navController: NavController) {
     var pricePerNight by remember { mutableStateOf("0.0") }
     var rules by remember { mutableStateOf("") }
     var cancellationPolicy by remember { mutableStateOf("") }
-    var tagsInput by remember { mutableStateOf("") } // comma separated tags
+    var tagsInput by remember { mutableStateOf("") }
+
+    var originalOwnerId by remember { mutableStateOf("") }
+
+    // States to prevent typing overrides and handle async loading smoothly
+    var isLoading by remember { mutableStateOf(!campsiteId.isNullOrBlank()) }
+    var dataLoaded by remember { mutableStateOf(false) }
+
+    // Fetch existing data from Firestore only once when editing
+    LaunchedEffect(campsiteId) {
+        if (!campsiteId.isNullOrBlank() && !dataLoaded) {
+            FirebaseFirestore.getInstance()
+                .collection("campsites")
+                .document(campsiteId)
+                .get()
+                .addOnSuccessListener { document ->
+                    val campsite = document.toObject(Campsite::class.java)
+                    if (campsite != null) {
+                        name = campsite.name
+                        description = campsite.description
+                        address = campsite.address
+                        maxOccupancy = campsite.maxOccupancy.toString()
+                        pricePerNight = campsite.pricePerNight.toString()
+                        rules = campsite.rules
+                        cancellationPolicy = campsite.cancellationPolicy
+                        tagsInput = campsite.tags.joinToString(", ")
+                        originalOwnerId = campsite.ownerId
+                    }
+                    isLoading = false
+                    dataLoaded = true
+                }
+                .addOnFailureListener {
+                    isLoading = false
+                    dataLoaded = true
+                }
+        }
+    }
 
     val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        Button(onClick = { navController.popBackStack() }, shape = RectangleShape) {
-            Text("Back")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Absolute.Left
+        ) {
+            Button(onClick = { navController.popBackStack() }, shape = RectangleShape) {
+                Text("Back")
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Register New Campsite", fontSize = 24.sp)
+
+        // Changed title text to "Edit Campsite Details" as requested
+        Text(
+            text = if (campsiteId.isNullOrBlank()) "Register New Campsite" else "Edit Campsite Details",
+            fontSize = 24.sp
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Campsite Name") }, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
+        // Show a loading spinner while fetching edit data so fields aren't blank/unresponsive
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(scrollState)
+            ) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Campsite Name") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Description & Amenities") }, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Description & Amenities") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Location / Address") }, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Location / Address") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(value = maxOccupancy, onValueChange = { maxOccupancy = it }, label = { Text("Max Occupancy") }, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = maxOccupancy, onValueChange = { maxOccupancy = it }, label = { Text("Max Occupancy") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(value = pricePerNight, onValueChange = { pricePerNight = it }, label = { Text("Price Per Night ($)") }, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = pricePerNight, onValueChange = { pricePerNight = it }, label = { Text("Price Per Night ($)") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(value = rules, onValueChange = { rules = it }, label = { Text("Campsite Rules") }, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = rules, onValueChange = { rules = it }, label = { Text("Campsite Rules") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(value = cancellationPolicy, onValueChange = { cancellationPolicy = it }, label = { Text("Cancellation Policy") }, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = cancellationPolicy, onValueChange = { cancellationPolicy = it }, label = { Text("Cancellation Policy") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(value = tagsInput, onValueChange = { tagsInput = it }, label = { Text("Tags (comma separated)") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = tagsInput, onValueChange = { tagsInput = it }, label = { Text("Tags (comma separated)") }, modifier = Modifier.fillMaxWidth())
 
-        Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
-        Button(
-            onClick = {
-                val deviceId = DeviceIdentity.getDeviceId(context)
-                // Construct the Campsite object using your existing model class
-                val newCampsite = Campsite(
-                    name = name,
-                    description = description,
-                    address = address,
-                    maxOccupancy = maxOccupancy.toIntOrNull() ?: 1,
-                    pricePerNight = pricePerNight.toDoubleOrNull() ?: 0.0,
-                    rules = rules,
-                    cancellationPolicy = cancellationPolicy,
-                    tags = tagsInput.split(",").map { it.trim() }.filter { it.isNotEmpty() },
-                    ownerId = deviceId // Replace with actual logged-in user identifier
-                )
+            Button(
+                onClick = {
+                    val deviceId = DeviceIdentity.getDeviceId(context)
+                    val resolvedOwnerId = if (originalOwnerId.isNotBlank()) originalOwnerId else deviceId
 
-                // Save to Firestore collection "campsites"
-                FirebaseFirestore.getInstance().collection("campsites")
-                    .add(newCampsite)
-                    .addOnSuccessListener {
-                        navController.popBackStack() // Return to dashboard on success
+                    val campsiteToSave = Campsite(
+                        campsiteId = campsiteId ?: "",
+                        name = name,
+                        description = description,
+                        address = address,
+                        maxOccupancy = maxOccupancy.toIntOrNull() ?: 1,
+                        pricePerNight = pricePerNight.toDoubleOrNull() ?: 0.0,
+                        rules = rules,
+                        cancellationPolicy = cancellationPolicy,
+                        tags = tagsInput.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+                        ownerId = resolvedOwnerId
+                    )
+
+                    val dbCollection = FirebaseFirestore.getInstance().collection("campsites")
+
+                    if (campsiteId.isNullOrBlank()) {
+                        dbCollection.add(campsiteToSave)
+                            .addOnSuccessListener {
+                                navController.popBackStack()
+                            }
+                    } else {
+                        dbCollection.document(campsiteId)
+                            .set(campsiteToSave)
+                            .addOnSuccessListener {
+                                navController.popBackStack()
+                            }
                     }
-            },
-            shape = RectangleShape,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Publish Campsite")
+                },
+                shape = RectangleShape,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (campsiteId.isNullOrBlank()) "Publish Campsite" else "Update Campsite Details")
+            }
         }
     }
 }

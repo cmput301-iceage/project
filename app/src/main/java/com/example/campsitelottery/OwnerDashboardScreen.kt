@@ -88,8 +88,8 @@ fun OwnerDashboardScreen(navController: NavController) {
                                 .fillMaxWidth()
                                 .padding(vertical = 8.dp)
                                 .clickable {
-                                    // Optional: Navigate to detail/edit screen passing ID
-                                    // navController.navigate("campsiteDetail/${campsite.campsiteId}")
+                                    // Navigate to campsiteInfo route and pass the specific campsiteId
+                                    navController.navigate("campsiteInfo/${campsite.campsiteId}")
                                 }
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
