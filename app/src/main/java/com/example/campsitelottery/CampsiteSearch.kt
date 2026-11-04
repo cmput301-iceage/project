@@ -77,6 +77,12 @@ object CampsiteSearch {
      * True if some lottery that includes [campsite] has a booking period overlapping
      * the day starting at [dateMillis] (UTC midnight). Lotteries without both booking
      * dates set are ignored.
+     *
+     * Booking dates are expected to be stored as the start of each day, either as UTC
+     * midnight (what the Material date picker returns) or as local midnight in a
+     * Canadian time zone. Both land inside the same UTC day, so both match correctly.
+     * Storing an end-of-day time such as 23:59 local would spill into the next UTC
+     * day and match one day too many.
      */
     fun isBookableOn(campsite: Campsite, dateMillis: Long, waitlists: List<Waitlist>): Boolean {
         val dayStart = dateMillis

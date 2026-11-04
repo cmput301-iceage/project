@@ -66,6 +66,7 @@ fun HomeScreen(
     // Lotteries, only needed for the date filter
     var waitlists by remember { mutableStateOf(listOf<Waitlist>()) }
     var waitlistsFailed by remember { mutableStateOf(false) }
+    var waitlistsLoaded by remember { mutableStateOf(false) }
 
     // Fetch campsites and lotteries in real time from Firestore. DisposableEffect so
     // the listeners are removed when the user leaves this screen.
@@ -88,6 +89,7 @@ fun HomeScreen(
         val waitlistsListener = db.collection(WAITLISTS_COLLECTION)
             .addSnapshotListener { snapshot, error ->
                 waitlistsFailed = error != null
+                waitlistsLoaded = true
                 if (snapshot != null) {
                     waitlists = snapshot.documents.mapNotNull { doc ->
                         runCatching { doc.toObject(Waitlist::class.java) }.getOrNull()
@@ -211,7 +213,9 @@ fun HomeScreen(
         }
 
         // Which filters are on and how many campsites match (US 1.3)
-        if (!isLoading && (filter.hasFilters || filter.query.isNotBlank())) {
+        // Date filtering needs the lotteries; wait for them so we don't flash "0 campsites"
+        val waitingForDates = filter.dateMillis != null && !waitlistsLoaded
+        if (!isLoading && !waitingForDates && (filter.hasFilters || filter.query.isNotBlank())) {
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth().testTag("filterSummary"),
@@ -239,7 +243,7 @@ fun HomeScreen(
 
         // Replaced the dummy list view with real Firestore cards styled like OwnerDashboardScreen
         when {
-            isLoading -> {
+            isLoading || waitingForDates -> {
                 Box(modifier = Modifier.fillMaxWidth().height(400.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }

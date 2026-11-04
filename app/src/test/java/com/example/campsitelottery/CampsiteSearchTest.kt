@@ -163,4 +163,15 @@ class CampsiteSearchTest {
     fun describe_singularGuest() {
         assertEquals(listOf("1 guest"), CampsiteSearch.describe(CampsiteFilter(guests = 1)))
     }
+
+    @Test
+    fun date_matchesBookingDatesStoredAsAlbertaLocalMidnight() {
+        // Nov 6 00:00 in Edmonton (UTC-7) is Nov 6 07:00 UTC
+        val edmontonMidnightNov6 = nov6 + 7 * 60 * 60 * 1000
+        val waitlists = listOf(lottery("1", startMillis = edmontonMidnightNov6, endMillis = edmontonMidnightNov6 + day))
+        assertFalse(CampsiteSearch.isBookableOn(lakeside, nov6 - day, waitlists))
+        assertTrue(CampsiteSearch.isBookableOn(lakeside, nov6, waitlists))
+        assertTrue(CampsiteSearch.isBookableOn(lakeside, nov6 + day, waitlists))
+        assertFalse(CampsiteSearch.isBookableOn(lakeside, nov6 + 2 * day, waitlists))
+    }
 }
