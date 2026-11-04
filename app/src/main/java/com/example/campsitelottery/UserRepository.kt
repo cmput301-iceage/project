@@ -36,7 +36,7 @@ interface UserRepository {
      *
      * @param userId the profile to update.
      * @param name the new name.
-     * @param email the new email address.
+     * @param email the new email address, or null to clear it.
      * @param phoneNumber the new phone number, or null to clear it.
      * @param onSuccess called once the change is saved.
      * @param onFailure receives the error if the profile could not be updated,
@@ -45,7 +45,7 @@ interface UserRepository {
     fun updateContactInfo(
         userId: String,
         name: String,
-        email: String,
+        email: String?,
         phoneNumber: String?,
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit,

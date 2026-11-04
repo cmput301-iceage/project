@@ -350,7 +350,7 @@ private fun EditProfileForm(
         tag = "nameField",
     )
     ProfileTextField(
-        label = "Email",
+        label = "Email (optional)",
         value = email,
         onValueChange = { email = it },
         error = errors.email,
