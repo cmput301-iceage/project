@@ -2,8 +2,11 @@ package com.example.campsitelottery
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Date
+import java.util.Locale
 
 /** Unit tests for [CampsiteSearch]. */
 class CampsiteSearchTest {
@@ -52,5 +55,96 @@ class CampsiteSearchTest {
     @Test
     fun noMatches_returnsEmptyList() {
         assertEquals(emptyList<Campsite>(), CampsiteSearch.apply(all, CampsiteFilter(query = "beach")))
+    }
+
+    // --- Filters (US 1.2) ---
+
+    /** Nov 6, 2026 00:00 UTC, as the Material date picker would return it. */
+    private val nov6 = 1793923200000L
+    private val day = 24L * 60 * 60 * 1000
+
+    private fun lottery(vararg campsiteIds: String, startMillis: Long?, endMillis: Long?) = Waitlist(
+        campsiteIds = campsiteIds.toList(),
+        bookingStartDate = startMillis?.let(::Date),
+        bookingEndDate = endMillis?.let(::Date),
+    )
+
+    @Test
+    fun location_matchesAddressIgnoringCaseAndSpaces() {
+        assertEquals(listOf(lakeside), CampsiteSearch.apply(all, CampsiteFilter(location = "  jasper ")))
+        assertEquals(all, CampsiteSearch.apply(all, CampsiteFilter(location = "AB")))
+    }
+
+    @Test
+    fun location_doesNotMatchName() {
+        assertFalse(CampsiteSearch.matchesLocation(ridge, "Ridge"))
+    }
+
+    @Test
+    fun guests_excludesCampsitesThatAreTooSmall() {
+        assertEquals(listOf(lakeside), CampsiteSearch.apply(all, CampsiteFilter(guests = 3)))
+        assertEquals(all, CampsiteSearch.apply(all, CampsiteFilter(guests = 2)))
+        assertEquals(emptyList<Campsite>(), CampsiteSearch.apply(all, CampsiteFilter(guests = 7)))
+    }
+
+    @Test
+    fun date_matchesOnlyCampsitesWithABookingPeriodCoveringIt() {
+        val waitlists = listOf(lottery("1", startMillis = nov6 - 2 * day, endMillis = nov6 + 2 * day))
+        assertEquals(listOf(lakeside), CampsiteSearch.apply(all, CampsiteFilter(dateMillis = nov6), waitlists))
+    }
+
+    @Test
+    fun date_includesFirstAndLastDayOfBookingPeriod() {
+        val waitlists = listOf(lottery("1", startMillis = nov6, endMillis = nov6 + 3 * day))
+        assertTrue(CampsiteSearch.isBookableOn(lakeside, nov6, waitlists))
+        assertTrue(CampsiteSearch.isBookableOn(lakeside, nov6 + 3 * day, waitlists))
+        assertFalse(CampsiteSearch.isBookableOn(lakeside, nov6 - day, waitlists))
+        assertFalse(CampsiteSearch.isBookableOn(lakeside, nov6 + 4 * day, waitlists))
+    }
+
+    @Test
+    fun date_matchesEveryCampsiteInAMultiSiteLottery() {
+        val waitlists = listOf(lottery("1", "2", startMillis = nov6, endMillis = nov6))
+        assertEquals(all, CampsiteSearch.apply(all, CampsiteFilter(dateMillis = nov6), waitlists))
+    }
+
+    @Test
+    fun date_ignoresLotteriesWithoutBookingDates() {
+        val waitlists = listOf(lottery("1", startMillis = null, endMillis = nov6 + day))
+        assertFalse(CampsiteSearch.isBookableOn(lakeside, nov6, waitlists))
+    }
+
+    @Test
+    fun date_withNoLotteries_matchesNothing() {
+        assertEquals(emptyList<Campsite>(), CampsiteSearch.apply(all, CampsiteFilter(dateMillis = nov6)))
+    }
+
+    @Test
+    fun filtersAndQuery_combine() {
+        val filter = CampsiteFilter(query = "views", location = "AB", guests = 2)
+        assertEquals(listOf(ridge), CampsiteSearch.apply(all, filter))
+    }
+
+    @Test
+    fun hasFilters_ignoresSearchText() {
+        assertFalse(CampsiteFilter(query = "lake").hasFilters)
+        assertTrue(CampsiteFilter(guests = 1).hasFilters)
+        assertTrue(CampsiteFilter(dateMillis = nov6).hasFilters)
+    }
+
+    @Test
+    fun parseGuests_acceptsOnlyPositiveWholeNumbers() {
+        assertEquals(4, CampsiteSearch.parseGuests(" 4 "))
+        assertNull(CampsiteSearch.parseGuests(""))
+        assertNull(CampsiteSearch.parseGuests("0"))
+        assertNull(CampsiteSearch.parseGuests("-2"))
+        assertNull(CampsiteSearch.parseGuests("2.5"))
+        assertTrue(CampsiteSearch.isValidGuestInput(""))
+        assertFalse(CampsiteSearch.isValidGuestInput("abc"))
+    }
+
+    @Test
+    fun formatDate_usesUtcDay() {
+        assertEquals("Nov 6, 2026", CampsiteSearch.formatDate(nov6, Locale.CANADA))
     }
 }

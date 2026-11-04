@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,8 +26,28 @@ import androidx.navigation.compose.rememberNavController
 import com.google.firebase.firestore.FirebaseFirestore
 
 /**
- * Home screen: lists every campsite and lets the user search them (US 1.1).
- * Tapping a campsite opens its details.
+ * Firestore collection holding lottery waitlists ([Waitlist] documents). Read here
+ * for the date filter, which needs each lottery's booking period.
+ */
+private const val WAITLISTS_COLLECTION = "waitlists"
+
+/** Keeps the search text and filters across rotation and process death. */
+private val CampsiteFilterSaver = listSaver<CampsiteFilter, Any?>(
+    save = { listOf(it.query, it.location, it.guests, it.dateMillis) },
+    restore = {
+        CampsiteFilter(
+            query = it[0] as String,
+            location = it[1] as String,
+            guests = it[2] as Int?,
+            dateMillis = it[3] as Long?,
+        )
+    },
+)
+
+/**
+ * Home screen: lists every campsite and lets the user search them (US 1.1) and
+ * filter them by location, number of guests and date (US 1.2). Tapping a campsite
+ * opens its details.
  *
  * @param navController used to open the profile, dashboards and campsite details.
  * @param userState the current user; decides whether the Admin and Owner buttons show.
@@ -42,31 +63,61 @@ fun HomeScreen(
     var campsitesList by remember { mutableStateOf(listOf<Campsite>()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // Fetch all campsites in real-time from Firestore
-    LaunchedEffect(Unit) {
+    // Lotteries, only needed for the date filter
+    var waitlists by remember { mutableStateOf(listOf<Waitlist>()) }
+    var waitlistsFailed by remember { mutableStateOf(false) }
+
+    // Fetch campsites and lotteries in real time from Firestore. DisposableEffect so
+    // the listeners are removed when the user leaves this screen.
+    DisposableEffect(Unit) {
         val db = FirebaseFirestore.getInstance()
-        db.collection("campsites")
+        val campsitesListener = db.collection("campsites")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     isLoading = false
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
-                    val loadedCampsites = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(Campsite::class.java)
+                    // Skip documents that don't fit the Campsite model instead of crashing
+                    campsitesList = snapshot.documents.mapNotNull { doc ->
+                        runCatching { doc.toObject(Campsite::class.java) }.getOrNull()
                     }
-                    campsitesList = loadedCampsites
                     isLoading = false
                 }
             }
+        val waitlistsListener = db.collection(WAITLISTS_COLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                waitlistsFailed = error != null
+                if (snapshot != null) {
+                    waitlists = snapshot.documents.mapNotNull { doc ->
+                        runCatching { doc.toObject(Waitlist::class.java) }.getOrNull()
+                    }
+                }
+            }
+        onDispose {
+            campsitesListener.remove()
+            waitlistsListener.remove()
+        }
     }
 
-    // Search text; results update as the user types
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-    val shownCampsites = remember(campsitesList, searchQuery) {
-        CampsiteSearch.apply(campsitesList, CampsiteFilter(query = searchQuery))
+    // Search text and filters; results update as the user types
+    var filter by rememberSaveable(stateSaver = CampsiteFilterSaver) { mutableStateOf(CampsiteFilter()) }
+    var showFilterDialog by rememberSaveable { mutableStateOf(false) }
+    val shownCampsites = remember(campsitesList, waitlists, filter) {
+        CampsiteSearch.apply(campsitesList, filter, waitlists)
     }
     val focusManager = LocalFocusManager.current
+
+    if (showFilterDialog) {
+        CampsiteFilterDialog(
+            initial = filter,
+            onApply = {
+                filter = it
+                showFilterDialog = false
+            },
+            onDismiss = { showFilterDialog = false },
+        )
+    }
 
     // Format Screen Here
     Column(
@@ -121,8 +172,8 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.Center
         ) {
             OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
+                value = filter.query,
+                onValueChange = { filter = filter.copy(query = it) },
                 label = { Text(text = "Search for Campsites", textAlign = TextAlign.Center) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -150,8 +201,9 @@ fun HomeScreen(
             Spacer(modifier = Modifier.width(16.dp))
 
             Button(
-                onClick = {}, //TODO: make search using filters
+                onClick = { showFilterDialog = true },
                 shape = RectangleShape,
+                modifier = Modifier.testTag("filterButton"),
             ) {
                 Text("Filter")
             }
@@ -173,7 +225,15 @@ fun HomeScreen(
             }
             shownCampsites.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxWidth().height(400.dp), contentAlignment = Alignment.Center) {
-                    Text("No campsites match \"${searchQuery.trim()}\".", fontSize = 16.sp)
+                    Text(
+                        if (filter.dateMillis != null && waitlistsFailed) {
+                            "Couldn't load lottery dates to filter by date."
+                        } else {
+                            "No campsites match your search."
+                        },
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
             else -> {
