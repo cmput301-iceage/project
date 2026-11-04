@@ -85,7 +85,13 @@ fun CampsiteLotteryApp(
                 userRepository = userRepository
             )}
         composable("ownerDashboard") {OwnerDashboardScreen(navController)}
-        composable("registerCampsite") {RegisterCampsiteScreen(navController)}
+        composable("registerCampsite") {
+            RegisterCampsiteScreen(navController, campsiteId = null)
+        }
+        composable("registerCampsite/{campsiteId}") { backStackEntry ->
+            val campsiteId = backStackEntry.arguments?.getString("campsiteId")
+            RegisterCampsiteScreen(navController, campsiteId = campsiteId)
+        }
         composable("adminNotifications") {AdminNotificationLogScreen(navController)}
         composable("adminProfiles") {
             AdminProfilesScreen(
