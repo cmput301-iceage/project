@@ -5,12 +5,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -19,6 +24,14 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.firestore.FirebaseFirestore
 
+/**
+ * Home screen: lists every campsite and lets the user search them (US 1.1).
+ * Tapping a campsite opens its details.
+ *
+ * @param navController used to open the profile, dashboards and campsite details.
+ * @param userState the current user; decides whether the Admin and Owner buttons show.
+ * @param userRepository where user profiles are stored.
+ */
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -48,12 +61,17 @@ fun HomeScreen(
             }
     }
 
+    // Search text; results update as the user types
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val shownCampsites = remember(campsitesList, searchQuery) {
+        CampsiteSearch.apply(campsitesList, CampsiteFilter(query = searchQuery))
+    }
+    val focusManager = LocalFocusManager.current
+
     // Format Screen Here
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
     ) {
-        // where campsite search name is stored
-        var campsiteName by remember { mutableStateOf("") }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -103,13 +121,14 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.Center
         ) {
             OutlinedTextField(
-                value = campsiteName,
-                onValueChange = { campsiteName = it },
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
                 label = { Text(text = "Search for Campsites", textAlign = TextAlign.Center) },
-                modifier = Modifier.width(600.dp)
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                modifier = Modifier.fillMaxWidth().testTag("searchField")
             )
-
-            Spacer(modifier = Modifier.width(16.dp))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -119,9 +138,11 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
+            // Results already update while typing; this just closes the keyboard
             Button(
-                onClick = {}, //TODO: make button search for campsites
+                onClick = { focusManager.clearFocus() },
                 shape = RectangleShape,
+                modifier = Modifier.testTag("searchButton"),
             ) {
                 Text("Search")
             }
@@ -150,11 +171,16 @@ fun HomeScreen(
                     Text("No campsites available.", fontSize = 16.sp)
                 }
             }
+            shownCampsites.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxWidth().height(400.dp), contentAlignment = Alignment.Center) {
+                    Text("No campsites match \"${searchQuery.trim()}\".", fontSize = 16.sp)
+                }
+            }
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().height(700.dp)
                 ) {
-                    items(campsitesList) { campsite ->
+                    items(shownCampsites, key = { it.campsiteId }) { campsite ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -178,6 +204,7 @@ fun HomeScreen(
     }
 }
 
+/** Preview of [HomeScreen]. Campsites only load on a device, so the list shows its loading state. */
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
