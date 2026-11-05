@@ -17,7 +17,7 @@ open class Firebase_DB(){
         "Message" to "Messages"
     )
 
-private inline fun <reified T> push2db(collectionKey: String, data: T, crossinline onComplete: (Int) -> Unit) {
+    private inline fun <reified T> push2db(collectionKey: String, data: T, crossinline onComplete: (Int) -> Unit) {
         val collectionName = collectionMap[collectionKey] ?: return onComplete(-1)
         db.collection(collectionName)
             .add(data!!)
