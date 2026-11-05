@@ -76,17 +76,7 @@ fun CampsiteLotteryApp(
                 onRetry = loadUser,
             )
         }
-        composable("lottery") {
-            LotteryScreen(navController, isOwnerView = false)
-        }
-        // Owner view (opened from the Owner Dashboard)
-        composable("ownerLottery") {
-            LotteryScreen(navController, isOwnerView = true)
-        }
-        composable("entrantList/{waitlistId}") { backStackEntry ->
-            val waitlistId = backStackEntry.arguments?.getString("waitlistId") ?: ""
-            EntrantListScreen(navController, waitlistId)
-        }
+        composable("lottery") { LotteryScreen(navController, entrantId = deviceId) }
         composable("booking") { BookingScreen(navController) }
         composable("notification") { NotificationScreen(navController) }
         composable("reservation") {
@@ -110,11 +100,7 @@ fun CampsiteLotteryApp(
             val campsiteId = backStackEntry.arguments?.getString("campsiteId")
             RegisterCampsiteScreen(navController, campsiteId = campsiteId)
         }
-        composable("createLottery") { CreateLotteryScreen(navController, waitlistId = null) }
-        composable("createLottery/{waitlistId}") { backStackEntry ->
-            val waitlistId = backStackEntry.arguments?.getString("waitlistId")
-            CreateLotteryScreen(navController, waitlistId = waitlistId)
-        }
+        composable("createLottery") { CreateLotteryScreen(navController) }
         composable("adminNotifications") {AdminNotificationLogScreen(navController)}
         composable("adminProfiles") {
             AdminProfilesScreen(
