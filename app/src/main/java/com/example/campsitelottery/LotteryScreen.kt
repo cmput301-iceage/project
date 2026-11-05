@@ -9,6 +9,7 @@
  */
 package com.example.campsitelottery
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -130,7 +131,19 @@ fun LotteryScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(waitlists) { waitlist ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .let { modifier ->
+                                if( isOwnerView){
+                                    modifier.clickable(){
+                                        navController.navigate("createLottery/${waitlist.waitlistId}")
+                                    }
+                                } else {
+                                    Modifier
+                                }
+                            }
+                        ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 val title = if (waitlist.lotteryName.isNotBlank()) waitlist.lotteryName else "Campsite Lottery Pool"
                                 Text(text = title, fontSize = 20.sp)

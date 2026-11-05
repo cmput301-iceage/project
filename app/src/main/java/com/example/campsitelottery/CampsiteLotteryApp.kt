@@ -108,7 +108,11 @@ fun CampsiteLotteryApp(
             val campsiteId = backStackEntry.arguments?.getString("campsiteId")
             RegisterCampsiteScreen(navController, campsiteId = campsiteId)
         }
-        composable("createLottery") { CreateLotteryScreen(navController) }
+        composable("createLottery") { CreateLotteryScreen(navController, waitlistId = null) }
+        composable("createLottery/{waitlistId}") { backStackEntry ->
+            val waitlistId = backStackEntry.arguments?.getString("waitlistId")
+            CreateLotteryScreen(navController, waitlistId = waitlistId)
+        }
         composable("adminNotifications") {AdminNotificationLogScreen(navController)}
         composable("adminProfiles") {
             AdminProfilesScreen(
