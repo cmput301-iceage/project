@@ -6,8 +6,223 @@
  */
 package com.example.campsitelottery
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+
+private const val CAMPSITES_COLLECTION = "campsites"
+
+/**
+ * Admin screen to browse every registered campsite (US 03.04.01) and remove one
+ * (US 03.01.01). Mirrors [AdminProfilesScreen]: live list, search, select, delete.
+ */
+@Composable
+fun AdminCampsitesScreen(navController: NavController) {
+    val backgroundColor = Color(0xFFFEFAE0)
+    val buttonColor = Color(0xFF283618)
+
+    var searchText by remember { mutableStateOf("") }
+    val campsites = remember { mutableStateListOf<Campsite>() }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var selectedCampsiteId by remember { mutableStateOf("") }
+    var isDeleting by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        val listener: ListenerRegistration = FirebaseFirestore.getInstance()
+            .collection(CAMPSITES_COLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    errorMessage = error.message
+                    return@addSnapshotListener
+                }
+                errorMessage = null
+                campsites.clear()
+                if (snapshot != null) {
+                    campsites.addAll(
+                        snapshot.documents.mapNotNull { doc ->
+                            runCatching { doc.toObject(Campsite::class.java) }.getOrNull()
+                        },
+                    )
+                }
+            }
+        onDispose { listener.remove() }
+    }
+
+    val filtered = campsites.filter { campsite ->
+        val q = searchText.trim()
+        if (q.isEmpty()) return@filter true
+        campsite.name.contains(q, ignoreCase = true) ||
+            campsite.address.contains(q, ignoreCase = true) ||
+            campsite.campsiteId.contains(q, ignoreCase = true)
+    }
+
+    fun deleteSelected() {
+        val id = selectedCampsiteId
+        if (id.isEmpty() || isDeleting) return
+        isDeleting = true
+        errorMessage = null
+        FirebaseFirestore.getInstance()
+            .collection(CAMPSITES_COLLECTION)
+            .document(id)
+            .delete()
+            .addOnSuccessListener {
+                isDeleting = false
+                selectedCampsiteId = ""
+            }
+            .addOnFailureListener {
+                isDeleting = false
+                errorMessage = it.message ?: "Could not delete campsite"
+            }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(backgroundColor)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(
+                onClick = { navController.popBackStack() },
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                modifier = Modifier.testTag("backButton"),
+            ) {
+                Text("< Back")
+            }
+
+            Text(
+                text = "Campsites",
+                fontSize = 35.sp,
+                modifier = Modifier.testTag("adminCampsitesHeader"),
+            )
+
+            Button(
+                onClick = { deleteSelected() },
+                enabled = selectedCampsiteId.isNotEmpty() && !isDeleting,
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                modifier = Modifier.testTag("deleteCampsiteButton"),
+            ) {
+                Text(if (isDeleting) "..." else "Delete")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        BasicTextField(
+            value = searchText,
+            onValueChange = { searchText = it },
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 16.sp,
+                color = buttonColor,
+                textAlign = TextAlign.Center,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(42.dp)
+                .border(2.dp, buttonColor)
+                .padding(8.dp)
+                .wrapContentHeight(Alignment.CenterVertically)
+                .testTag("adminCampsitesSearch"),
+            decorationBox = { innerTextField ->
+                Box(contentAlignment = Alignment.Center) {
+                    if (searchText.isEmpty()) {
+                        Text("Search...", color = buttonColor, fontSize = 16.sp)
+                    }
+                    innerTextField()
+                }
+            },
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        errorMessage?.let {
+            Text(it, color = Color.Red, modifier = Modifier.testTag("adminCampsitesError"))
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .testTag("adminCampsitesList"),
+        ) {
+            items(filtered, key = { it.campsiteId }) { campsite ->
+                val selected = selectedCampsiteId == campsite.campsiteId
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            selectedCampsiteId =
+                                if (selected) "" else campsite.campsiteId
+                        }
+                        .background(
+                            if (selected) buttonColor.copy(alpha = 0.3f) else backgroundColor,
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .border(1.dp, buttonColor)
+                        .testTag("adminCampsite_${campsite.campsiteId}"),
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                        Text(campsite.name.ifBlank { "(unnamed)" }, fontSize = 18.sp)
+                        Text(campsite.address.ifBlank { "No address" }, fontSize = 14.sp)
+                        Text(
+                            "Occupancy ${campsite.maxOccupancy} · $${campsite.pricePerNight}/night",
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true)
 
 /**
  * Documentation generated by Gemini
@@ -16,4 +231,6 @@ import androidx.navigation.NavController
  * @param navController Navigation controller for routing back to admin dashboard.
  */
 @Composable
-fun AdminCampsitesScreen(navController: NavController) {}
+fun AdminCampsitesScreenPreview() {
+    AdminCampsitesScreen(rememberNavController())
+}

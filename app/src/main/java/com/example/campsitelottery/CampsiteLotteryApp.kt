@@ -89,7 +89,9 @@ fun CampsiteLotteryApp(
         }
         composable("booking") { BookingScreen(navController) }
         composable("notification") { NotificationScreen(navController) }
-        composable("reservation") { ReservationScreen(navController) }
+        composable("reservation") {
+            ReservationScreen(navController, entrantId = deviceId)
+        }
         composable("campsiteInfo/{campsiteId}") { backStackEntry ->
             val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
             CampsiteInfoScreen(navController, campsiteId)
