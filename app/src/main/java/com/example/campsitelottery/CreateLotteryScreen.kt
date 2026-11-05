@@ -28,7 +28,8 @@ import java.util.*
  * @param navController Navigation controller for routing back to the dashboard.
  */
 @Composable
-fun CreateLotteryScreen(navController: NavController) {
+fun CreateLotteryScreen(navController: NavController, waitlistId: String? = null) {
+
     val context = LocalContext.current
     val deviceId = DeviceIdentity.getDeviceId(context)
 
@@ -47,13 +48,37 @@ fun CreateLotteryScreen(navController: NavController) {
     val scrollState = rememberScrollState()
 
     // Fetch the owner's registered campsites from Firestore
-    LaunchedEffect(deviceId) {
-        FirebaseFirestore.getInstance().collection("campsites")
+    // Function designed by gemini: "How do I make it pick entrants automatically at the draw date"
+    LaunchedEffect(deviceId, waitlistId) {
+        val db = FirebaseFirestore.getInstance()
+
+        // 1. Fetch owner's campsites so checkboxes populate
+        db.collection("campsites")
             .whereEqualTo("ownerId", deviceId)
             .get()
             .addOnSuccessListener { snapshot ->
                 ownerCampsites = snapshot.documents.mapNotNull { it.toObject(Campsite::class.java) }
             }
+
+        // 2. If editing, fetch the existing waitlist data to pre-fill the form
+        if (!waitlistId.isNullOrBlank()) {
+            db.collection("waitlists").document(waitlistId)
+                .get()
+                .addOnSuccessListener { doc ->
+                    val w = doc.toObject(Waitlist::class.java)
+                    if (w != null) {
+                        lotteryName = w.lotteryName
+                        numberOfWinners = w.numberOfWinnersToDraw.toString()
+                        maxCapacity = w.maxWaitlistCapacity?.toString() ?: ""
+                        selectedCampsiteIds = w.campsiteIds.toSet()
+
+                        if (w.registrationStartDate != null) regStartStr = dateFormat.format(w.registrationStartDate)
+                        if (w.registrationEndDate != null) regEndStr = dateFormat.format(w.registrationEndDate)
+                        if (w.bookingStartDate != null) bookStartStr = dateFormat.format(w.bookingStartDate)
+                        if (w.bookingEndDate != null) bookEndStr = dateFormat.format(w.bookingEndDate)
+                    }
+                }
+        }
     }
 
     Column(
@@ -166,25 +191,41 @@ fun CreateLotteryScreen(navController: NavController) {
                     val bookEnd = dateFormat.parse(bookEndStr)
                     val winnersCount = numberOfWinners.toIntOrNull() ?: 1
                     val capacity = maxCapacity.toIntOrNull()
+                    val waitlistCollection = FirebaseFirestore.getInstance().collection("waitlists")
 
-                    val newWaitlist = Waitlist(
-                        campsiteIds = selectedCampsiteIds.toList(),
-                        ownerId = deviceId,
-                        lotteryName = lotteryName.ifBlank { "Campsite Lottery" },
-                        registrationStartDate = regStart,
-                        registrationEndDate = regEnd,
-                        bookingStartDate = bookStart,
-                        bookingEndDate = bookEnd,
-                        numberOfWinnersToDraw = winnersCount,
-                        maxWaitlistCapacity = capacity,
-                        isDrawn = false
-                    )
 
-                    FirebaseFirestore.getInstance().collection("waitlists")
-                        .add(newWaitlist)
-                        .addOnSuccessListener {
-                            navController.popBackStack()
-                        }
+                    if (waitlistId.isNullOrBlank()) {
+                        // Create New
+                        val newWaitlist = Waitlist(
+                            campsiteIds = selectedCampsiteIds.toList(),
+                            ownerId = deviceId,
+                            lotteryName = lotteryName.ifBlank { "Campsite Lottery" },
+                            registrationStartDate = regStart,
+                            registrationEndDate = regEnd,
+                            bookingStartDate = bookStart,
+                            bookingEndDate = bookEnd,
+                            numberOfWinnersToDraw = winnersCount,
+                            maxWaitlistCapacity = capacity,
+                            isDrawn = false
+                        )
+                        waitlistCollection.add(newWaitlist).addOnSuccessListener { navController.popBackStack() }
+                    } else {
+                        // Update Existing
+                        val updatedWaitlist = Waitlist(
+                            waitlistId = waitlistId,
+                            campsiteIds = selectedCampsiteIds.toList(),
+                            ownerId = deviceId,
+                            lotteryName = lotteryName.ifBlank { "Campsite Lottery" },
+                            registrationStartDate = regStart,
+                            registrationEndDate = regEnd,
+                            bookingStartDate = bookStart,
+                            bookingEndDate = bookEnd,
+                            numberOfWinnersToDraw = winnersCount,
+                            maxWaitlistCapacity = capacity,
+                            isDrawn = false
+                        )
+                        waitlistCollection.document(waitlistId).set(updatedWaitlist).addOnSuccessListener { navController.popBackStack() }
+                    }
                 } catch (e: Exception) {
                     // Handle parsing errors
                 }
@@ -193,7 +234,7 @@ fun CreateLotteryScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth(),
             enabled = selectedCampsiteIds.isNotEmpty()
         ) {
-            Text("Publish Lottery Listing")
+            Text(if (waitlistId.isNullOrBlank()) "Publish Lottery Listing" else "Update Lottery Listing")
         }
     }
 }

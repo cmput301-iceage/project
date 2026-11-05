@@ -83,6 +83,10 @@ fun CampsiteLotteryApp(
         composable("ownerLottery") {
             LotteryScreen(navController, isOwnerView = true)
         }
+        composable("entrantList/{waitlistId}") { backStackEntry ->
+            val waitlistId = backStackEntry.arguments?.getString("waitlistId") ?: ""
+            EntrantListScreen(navController, waitlistId)
+        }
         composable("booking") { BookingScreen(navController) }
         composable("notification") { NotificationScreen(navController) }
         composable("reservation") { ReservationScreen(navController) }

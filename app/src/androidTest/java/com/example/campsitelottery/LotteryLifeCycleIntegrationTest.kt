@@ -1,4 +1,6 @@
 /**
+ * Test file developed by Gemini: Can you make a test file that tests this feature, by making a campsite, creating a lottery for it, a couple users, adding the users to the lottery, having the user drawn at random, then deleting the test datat you created. Across like 10 or so test funcitons required to test this feature
+ *
  * File Name: LotteryLifecycleIntegrationTest.kt
  * Purpose: Provides an end-to-end integration test suite verifying the complete campsite and lottery lifecycle,
  * including creation, entrant waitlist participation, automated/random draws, updates, and database cleanup.
@@ -93,7 +95,7 @@ class LotteryLifecycleIntegrationTest {
         val doc = Tasks.await(db.collection("waitlists").document(testWaitlistId).get())
         assertTrue(doc.exists())
         assertEquals("Integration Test Lottery", doc.getString("lotteryName"))
-        assertEquals(false, doc.getBoolean("isDrawn"))
+        assertEquals(false, doc.getBoolean("drawn"))
     }
 
     /**
@@ -108,7 +110,7 @@ class LotteryLifecycleIntegrationTest {
             lotteryName = "Integration Test Lottery",
             campsiteIds = listOf(testCampsiteId),
             numberOfWinnersToDraw = 1,
-            joinedEntrantIds = listOf(testEntrant1),
+            joinedEntrantIds = mutableListOf(testEntrant1),
             isDrawn = false
         )
         Tasks.await(db.collection("waitlists").document(testWaitlistId).set(waitlist))
@@ -135,7 +137,7 @@ class LotteryLifecycleIntegrationTest {
             waitlistId = testWaitlistId,
             ownerId = testOwnerId,
             campsiteIds = listOf(testCampsiteId),
-            joinedEntrantIds = listOf(testEntrant1, testEntrant2)
+            joinedEntrantIds = mutableListOf(testEntrant1, testEntrant2)
         )
         Tasks.await(db.collection("waitlists").document(testWaitlistId).set(waitlist))
 
@@ -155,7 +157,7 @@ class LotteryLifecycleIntegrationTest {
             waitlistId = testWaitlistId,
             ownerId = testOwnerId,
             campsiteIds = listOf(testCampsiteId),
-            joinedEntrantIds = listOf(testEntrant1, testEntrant2),
+            joinedEntrantIds = mutableListOf(testEntrant1, testEntrant2),
             isDrawn = false
         )
         Tasks.await(db.collection("waitlists").document(testWaitlistId).set(waitlist))
@@ -204,7 +206,7 @@ class LotteryLifecycleIntegrationTest {
             waitlistId = testWaitlistId,
             ownerId = testOwnerId,
             campsiteIds = listOf(testCampsiteId),
-            joinedEntrantIds = listOf(testEntrant1, testEntrant2),
+            joinedEntrantIds = mutableListOf(testEntrant1, testEntrant2),
             numberOfWinnersToDraw = 1,
             isDrawn = false
         )
@@ -235,8 +237,8 @@ class LotteryLifecycleIntegrationTest {
         val waitlist = Waitlist(
             waitlistId = testWaitlistId,
             ownerId = testOwnerId,
-            joinedEntrantIds = listOf(testEntrant1),
-            selectedWinnerIds = listOf(testEntrant1),
+            joinedEntrantIds = mutableListOf(testEntrant1),
+            selectedWinnerIds = mutableListOf(testEntrant1),
             isDrawn = true
         )
         Tasks.await(db.collection("waitlists").document(testWaitlistId).set(waitlist))
@@ -257,7 +259,7 @@ class LotteryLifecycleIntegrationTest {
         val waitlist = Waitlist(
             waitlistId = testWaitlistId,
             ownerId = testOwnerId,
-            joinedEntrantIds = listOf(testEntrant1)
+            joinedEntrantIds = mutableListOf(testEntrant1)
         )
         Tasks.await(db.collection("waitlists").document(testWaitlistId).set(waitlist))
 
