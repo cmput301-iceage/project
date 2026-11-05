@@ -76,7 +76,13 @@ fun CampsiteLotteryApp(
                 onRetry = loadUser,
             )
         }
-        composable("lottery") { LotteryScreen(navController) }
+        composable("lottery") {
+            LotteryScreen(navController, isOwnerView = false)
+        }
+        // Owner view (opened from the Owner Dashboard)
+        composable("ownerLottery") {
+            LotteryScreen(navController, isOwnerView = true)
+        }
         composable("booking") { BookingScreen(navController) }
         composable("notification") { NotificationScreen(navController) }
         composable("reservation") { ReservationScreen(navController) }

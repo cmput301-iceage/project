@@ -79,8 +79,8 @@ fun OwnerDashboardScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Button(onClick = { navController.navigate("adminDashboard") }, shape = RectangleShape) {
-                Text("View Lotteries")
+            Button(onClick = { navController.navigate("ownerLottery") }, shape = RectangleShape) {
+                Text("Manage Lotteries")
             }
             Button(onClick = { navController.navigate("createLottery") }, shape = RectangleShape) {
                 Text("+ Create Lottery")
