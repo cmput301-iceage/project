@@ -55,80 +55,82 @@ interface class Messenger(){
 
 
 @Serializable
-data class Message(){
-    val room_id: Int
-    val message_id: Int
-    val sender_alias: String
-    val body: String
-    val datetime: DateTime
-}
+data class Message(
+    val room_id: Int,
+    val message_id: Int,
+    val sender_alias: String,
+    val body: String,
+    val datetime: DateTime,
+){}
 
 @Serializable
-data class Me(){
+data class Me(
     // This phone
-    val messenger_alias: String
-    val saved_rooms: MutableList<Rooms>
-    val saved_messages: MutableList<Messages>
-}
+    val messenger_alias: String,
+    val saved_rooms: MutableList<Rooms>,
+    val saved_messages: MutableList<Messages>,
+){}
 
 @Serializable
-data class Room(){
+data class Room(
     // val room_id: Int         // No longer needs room_id, will use map aliases
-    val members: Map            // phone id: alias
-    var bottom_index: Int       // init = 0
-    var top_index: Int          // top_index >= bottomindex; init = 0
-    var last_msg: DateTime
+    val members: Map,            // phone id: alias
+    var bottom_index: Int,       // init = 0
+    var top_index: Int,          // top_index >= bottomindex; init = 0
+    var last_msg: DateTime,
 
-}
-
-@Serializable
-data class Notification(){
-    val phone_id: String
-    val content: String
-}
+){}
 
 @Serializable
-data class Campsites(){
+data class Notification(
+    val phone_id: String,
+    val content: String,
+){}
+
+@Serializable
+data class Campsites(
     // Please do not confuse a Campsite for Campground (a collection of sites).
     // We are only using Campsite in this implementation
-    val owner_phone_id: String
-    val photos: MutableList<Photos>
-    val title: String
-    val discription: String
-    val open_Auctions: MutableList<AuctionSession.sessionset>
-    val address:String
-    val directions:String
+    val owner_phone_id: String,
+    val photos: MutableList<Photos>,
+    val title: String,
+    val discription: String,
+    val open_Auctions: MutableList<AuctionSession.sessionset>,
+    val address:String,
+    val directions:String,
+){
 
-
-interface class AuctionSession(){
-    val sessionset: Int
-
-}
-
-@Serializable
-data class Auction():AuctionSession{
-    val bid_id: Int
-    val campsite: Campsites
-    val date: Date
-    val members: MutableList<String>
-}
-
-@Serializable
-data class User(){
-    val phone_id: String
-    var alias: String
-    var permission_level: Int       // 0: Admin, 1: Owner, 2: Camper
-    val rooms: MutableList<Rooms>
+interface class AuctionSession(
+    val sessionset: Int,
+){
 
 }
 
 @Serializable
-data class Owner(): User{
-    val campsites: MutableList<Campsites>
-}
+data class Auction(
+    val bid_id: Int,
+    val campsite: Campsites,
+    val date: Date,
+    val members: MutableList<String>,
+):AuctionSession{}
 
 @Serializable
-data class Camper():User{
-    val my_bids: MutableList<AuctionSession>
-    val my_awards: MutableList<AuctionSession>
-    val my_bookings:MutableList<Auctions>
+data class User(
+    val phone_id: String,
+    var alias: String,
+    var permission_level: Int ,      // 0: Admin, 1: Owner, 2: Camper
+    val rooms: MutableList<Rooms>,
+
+){}
+
+@Serializable
+data class Owner(
+    val campsites: MutableList<Campsites>,
+): User{}
+
+@Serializable
+data class Camper(
+    val my_bids: MutableList<AuctionSession>,
+    val my_awards: MutableList<AuctionSession>,
+    val my_bookings:MutableList<Auctions>,
+):User{}
