@@ -5,12 +5,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -19,6 +25,34 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.firestore.FirebaseFirestore
 
+/**
+ * Firestore collection holding lottery waitlists ([Waitlist] documents). Read here
+ * for the date filter, which needs each lottery's booking period.
+ */
+private const val WAITLISTS_COLLECTION = "waitlists"
+
+/** Keeps the search text and filters across rotation and process death. */
+private val CampsiteFilterSaver = listSaver<CampsiteFilter, Any?>(
+    save = { listOf(it.query, it.location, it.guests, it.dateMillis) },
+    restore = {
+        CampsiteFilter(
+            query = it[0] as String,
+            location = it[1] as String,
+            guests = it[2] as Int?,
+            dateMillis = it[3] as Long?,
+        )
+    },
+)
+
+/**
+ * Home screen: lists every campsite and lets the user search them (US 1.1) and
+ * filter them by location, number of guests and date (US 1.2). Results are listed
+ * with a summary of the active filters (US 1.3). Tapping a campsite opens its details.
+ *
+ * @param navController used to open the profile, dashboards and campsite details.
+ * @param userState the current user; decides whether the Admin and Owner buttons show.
+ * @param userRepository where user profiles are stored.
+ */
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -29,31 +63,68 @@ fun HomeScreen(
     var campsitesList by remember { mutableStateOf(listOf<Campsite>()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // Fetch all campsites in real-time from Firestore
-    LaunchedEffect(Unit) {
+    // Lotteries, only needed for the date filter
+    var waitlists by remember { mutableStateOf(listOf<Waitlist>()) }
+    var waitlistsFailed by remember { mutableStateOf(false) }
+    var waitlistsLoaded by remember { mutableStateOf(false) }
+
+    // Fetch campsites and lotteries in real time from Firestore. DisposableEffect so
+    // the listeners are removed when the user leaves this screen.
+    DisposableEffect(Unit) {
         val db = FirebaseFirestore.getInstance()
-        db.collection("campsites")
+        val campsitesListener = db.collection("campsites")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     isLoading = false
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
-                    val loadedCampsites = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(Campsite::class.java)
+                    // Skip documents that don't fit the Campsite model instead of crashing
+                    campsitesList = snapshot.documents.mapNotNull { doc ->
+                        runCatching { doc.toObject(Campsite::class.java) }.getOrNull()
                     }
-                    campsitesList = loadedCampsites
                     isLoading = false
                 }
             }
+        val waitlistsListener = db.collection(WAITLISTS_COLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                waitlistsFailed = error != null
+                waitlistsLoaded = true
+                if (snapshot != null) {
+                    waitlists = snapshot.documents.mapNotNull { doc ->
+                        runCatching { doc.toObject(Waitlist::class.java) }.getOrNull()
+                    }
+                }
+            }
+        onDispose {
+            campsitesListener.remove()
+            waitlistsListener.remove()
+        }
+    }
+
+    // Search text and filters; results update as the user types
+    var filter by rememberSaveable(stateSaver = CampsiteFilterSaver) { mutableStateOf(CampsiteFilter()) }
+    var showFilterDialog by rememberSaveable { mutableStateOf(false) }
+    val shownCampsites = remember(campsitesList, waitlists, filter) {
+        CampsiteSearch.apply(campsitesList, filter, waitlists)
+    }
+    val focusManager = LocalFocusManager.current
+
+    if (showFilterDialog) {
+        CampsiteFilterDialog(
+            initial = filter,
+            onApply = {
+                filter = it
+                showFilterDialog = false
+            },
+            onDismiss = { showFilterDialog = false },
+        )
     }
 
     // Format Screen Here
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
     ) {
-        // where campsite search name is stored
-        var campsiteName by remember { mutableStateOf("") }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -103,13 +174,14 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.Center
         ) {
             OutlinedTextField(
-                value = campsiteName,
-                onValueChange = { campsiteName = it },
+                value = filter.query,
+                onValueChange = { filter = filter.copy(query = it) },
                 label = { Text(text = "Search for Campsites", textAlign = TextAlign.Center) },
-                modifier = Modifier.width(600.dp)
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                modifier = Modifier.fillMaxWidth().testTag("searchField")
             )
-
-            Spacer(modifier = Modifier.width(16.dp))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -119,20 +191,51 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
+            // Results already update while typing; this just closes the keyboard
             Button(
-                onClick = {}, //TODO: make button search for campsites
+                onClick = { focusManager.clearFocus() },
                 shape = RectangleShape,
+                modifier = Modifier.testTag("searchButton"),
             ) {
                 Text("Search")
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            val activeFilters = CampsiteSearch.describe(filter)
             Button(
-                onClick = {}, //TODO: make search using filters
+                onClick = { showFilterDialog = true },
                 shape = RectangleShape,
+                modifier = Modifier.testTag("filterButton"),
             ) {
-                Text("Filter")
+                Text(if (activeFilters.isEmpty()) "Filter" else "Filter (${activeFilters.size})")
+            }
+        }
+
+        // Which filters are on and how many campsites match (US 1.3)
+        // Date filtering needs the lotteries; wait for them so we don't flash "0 campsites"
+        val waitingForDates = filter.dateMillis != null && !waitlistsLoaded
+        if (!isLoading && !waitingForDates && (filter.hasFilters || filter.query.isNotBlank())) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().testTag("filterSummary"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val count = shownCampsites.size
+                val summary = buildString {
+                    append(if (count == 1) "1 campsite" else "$count campsites")
+                    val labels = CampsiteSearch.describe(filter)
+                    if (labels.isNotEmpty()) append(" · ").append(labels.joinToString(" · "))
+                }
+                Text(summary, modifier = Modifier.weight(1f))
+                if (filter.hasFilters) {
+                    TextButton(
+                        onClick = { filter = filter.copy(location = "", guests = null, dateMillis = null) },
+                        modifier = Modifier.testTag("clearFiltersInlineButton"),
+                    ) {
+                        Text("Clear filters")
+                    }
+                }
             }
         }
 
@@ -140,7 +243,7 @@ fun HomeScreen(
 
         // Replaced the dummy list view with real Firestore cards styled like OwnerDashboardScreen
         when {
-            isLoading -> {
+            isLoading || waitingForDates -> {
                 Box(modifier = Modifier.fillMaxWidth().height(400.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -150,11 +253,26 @@ fun HomeScreen(
                     Text("No campsites available.", fontSize = 16.sp)
                 }
             }
+            shownCampsites.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxWidth().height(400.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        if (filter.dateMillis != null && waitlistsFailed) {
+                            "Couldn't load lottery dates to filter by date."
+                        } else if (filter.hasFilters) {
+                            "No campsites match these filters. Try clearing some."
+                        } else {
+                            "No campsites match your search."
+                        },
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().height(700.dp)
                 ) {
-                    items(campsitesList) { campsite ->
+                    items(shownCampsites, key = { it.campsiteId }) { campsite ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -178,6 +296,7 @@ fun HomeScreen(
     }
 }
 
+/** Preview of [HomeScreen]. Campsites only load on a device, so the list shows its loading state. */
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
