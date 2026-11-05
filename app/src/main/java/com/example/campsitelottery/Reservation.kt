@@ -92,4 +92,14 @@ data class Reservation(
     fun isActive(): Boolean {
         return status == ReservationStatus.CONFIRMED
     }
+
+    /**
+     * Past reservations for the entrant's history list (US 01.06.02): completed,
+     * cancelled by the entrant, or rejected by the owner.
+     */
+    fun isPast(): Boolean {
+        return status == ReservationStatus.COMPLETED ||
+            status == ReservationStatus.CANCELLED_BY_ENTRANT ||
+            status == ReservationStatus.REJECTED_BY_OWNER
+    }
 }
