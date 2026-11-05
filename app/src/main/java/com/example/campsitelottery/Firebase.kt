@@ -1,56 +1,73 @@
 package com.example.campsitelottery
 
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.serialization.Serializable
 
 open class Firebase_DB(){
 
-    private val collectionMap:Map = Map{
-        // Map of Kotlin objects to Firebase collection.
-        "Campsite": "Campsites",
-        "Owner": "Owners",
-        "Camper": "Campers",
-        "Notification": "Notifications",
-        "Auction": "Auctions"
-        "Room":"Rooms",
-        "Message": "Messages",
-        "Notification":"Notifications"
+    private val db = FirebaseFirestore.getInstance()
+
+    private val collectionMap = mapOf(
+        "Campsite" to "Campsites",
+        "Owner" to "Owners",
+        "Camper" to "Campers",
+        "Notification" to "Notifications",
+        "Auction" to "Auctions",
+        "Room" to "Rooms",
+        "Message" to "Messages"
+    )
+
+private inline fun <reified T> push2db(collectionKey: String, data: T, crossinline onComplete: (Int) -> Unit) {
+        val collectionName = collectionMap[collectionKey] ?: return onComplete(-1)
+        db.collection(collectionName)
+            .add(data!!)
+            .addOnSuccessListener { onComplete(0) }
+            .addOnFailureListener { onComplete(-1) }
     }
 
-    private fun push2db(collection:String, package):Int{
-        // returns 0 if successful
-        // returns not 0 if failed
+    fun push_campsite(campsite: Campsites, onComplete: (Int) -> Unit) {
+        push2db("Campsite", campsite, onComplete)
     }
 
-    fun push_campsite(package:Campsite):Int{
-        return push2db(collectionMap["Campsite"],package)
-    }
-
-    fun get_campsite(){}
-
-    fun get_MyRooms(phone_id):MutableListOf<Rooms>{
-        // select * in Rooms where phone_id in member_keys
-        myrooms:MutableList<Rooms>
-        for each * in Rooms:
-        room = Room(
-
-
-            fun push_message(package:Message):Int{
-                return push2db(collectionMap["Message"], package)
+    fun get_campsite(campsiteId: String, onResult: (Campsites?) -> Unit) {
+        val collectionName = collectionMap["Campsite"] ?: return onResult(null)
+        db.collection(collectionName).document(campsiteId).get()
+            .addOnSuccessListener { document ->
+                val campsite = document.toObject(Campsites::class.java)
+                onResult(campsite)
             }
-
-
-            fun get_
-
+            .addOnFailureListener { onResult(null) }
     }
 
-interface class Messenger(){
-    val collection = "Messages"
+    fun get_MyRooms(phone_id: String, onResult: (List<Room>) -> Unit) {
+        val collectionName = collectionMap["Room"] ?: return onResult(emptyList())
+        db.collection(collectionName).get()
+            .addOnSuccessListener { snapshot ->
+                val myRooms = mutableListOf<Room>()
+                for (doc in snapshot.documents) {
+                    val room = doc.toObject(Room::class.java)
+                    // Check if phone_id exists as a key in the members map
+                    if (room != null && room.members.containsKey(phone_id)) {
+                        myRooms.add(room)
+                    }
+                }
+                onResult(myRooms)
+            }
+            .addOnFailureListener { onResult(emptyList()) }
+    }
 
-    fun getDB_messages(room_id: Int, lastpoint: Int){}
+    fun push_message(message: Message, onComplete: (Int) -> Unit) {
+        push2db("Message", message, onComplete)
+    }
+}
 
-    fun pushDB_message(room_id: Int, payload:Message){}
+interface Messenger {
+    companion object {
+        const val COLLECTION = "Messages"
+    }
 
-    fun
+    fun getDB_messages(room_id: Int, lastpoint: Int, onResult: (List<Message>) -> Unit)
+    fun pushDB_message(message: Message, onComplete: (Int) -> Unit)
 }
 
 
@@ -60,7 +77,7 @@ data class Message(
     val message_id: Int,
     val sender_alias: String,
     val body: String,
-    val datetime: DateTime,
+    val datetime: Long,
 ){}
 
 @Serializable
