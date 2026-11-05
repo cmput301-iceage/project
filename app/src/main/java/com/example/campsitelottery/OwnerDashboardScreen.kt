@@ -63,6 +63,17 @@ fun OwnerDashboardScreen(navController: NavController) {
                 Text("+ Register New Campsite")
             }
         }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Button(onClick = { navController.navigate("adminDashboard") }, shape = RectangleShape) {
+                Text("View Lotteries")
+            }
+            Button(onClick = { navController.navigate("createLottery") }, shape = RectangleShape) {
+                Text("+ Create Lottery")
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
         Text("My Campsites", fontSize = 28.sp)

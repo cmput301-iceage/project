@@ -156,12 +156,24 @@ fun CampsiteInfoScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Button(
-                onClick = { }, // TODO: Join lottery/waitlist action
-                shape = RectangleShape,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Join Lottery/Waitlist")
+            if (canEdit) {
+                Button(
+                    onClick = { }, // TODO: View Lottery/Waitlist action
+                    shape = RectangleShape,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("View Lottery/Waitlist")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            } else {
+                Button(
+                    onClick = { }, // TODO: Join Lottery/Waitlist action
+                    shape = RectangleShape,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Join Lotter/Waitlist")
+                }
+
             }
         }
     }

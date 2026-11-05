@@ -12,6 +12,7 @@ data class Waitlist(
     val waitlistId: String = "",
     var campsiteIds: List<String> = emptyList(),  // Supports single or multi-campsite lotteries
     var ownerId: String = "",
+    var lotteryName: String = "",
 
     // Configurable time windows
     var registrationStartDate: Date? = null,
@@ -34,6 +35,7 @@ data class Waitlist(
         waitlistId = "",
         campsiteIds = emptyList(),
         ownerId = "",
+        lotteryName = "",
         registrationStartDate = null,
         registrationEndDate = null,
         bookingStartDate = null,
