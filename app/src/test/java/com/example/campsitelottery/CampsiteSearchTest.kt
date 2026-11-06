@@ -165,6 +165,60 @@ class CampsiteSearchTest {
     }
 
     @Test
+    fun describe_omitsBlankLocation() {
+        assertEquals(emptyList<String>(), CampsiteSearch.describe(CampsiteFilter(location = "   ")))
+    }
+
+    // --- Edge cases ---
+
+    @Test
+    fun apply_keepsOriginalOrder() {
+        val reversed = listOf(ridge, lakeside)
+        assertEquals(reversed, CampsiteSearch.apply(reversed, CampsiteFilter(location = "AB")))
+    }
+
+    @Test
+    fun apply_withNoCampsites_returnsEmptyList() {
+        assertEquals(emptyList<Campsite>(), CampsiteSearch.apply(emptyList(), CampsiteFilter(query = "lake")))
+    }
+
+    @Test
+    fun query_ignoresExtraWhitespaceBetweenWords() {
+        assertTrue(CampsiteSearch.matchesQuery(lakeside, "  lake \t  tent "))
+    }
+
+    @Test
+    fun blankLocation_matchesEverything() {
+        assertTrue(CampsiteSearch.matchesLocation(lakeside, "   "))
+    }
+
+    @Test
+    fun nullGuests_matchesEverything() {
+        assertTrue(CampsiteSearch.fitsGuests(ridge, null))
+    }
+
+    @Test
+    fun date_ignoresLotteriesForOtherCampsites() {
+        val waitlists = listOf(lottery("2", startMillis = nov6, endMillis = nov6))
+        assertFalse(CampsiteSearch.isBookableOn(lakeside, nov6, waitlists))
+    }
+
+    @Test
+    fun date_matchesIfAnyLotteryCoversIt() {
+        val waitlists = listOf(
+            lottery("1", startMillis = nov6 - 5 * day, endMillis = nov6 - 4 * day),
+            lottery("1", startMillis = nov6, endMillis = nov6 + day),
+        )
+        assertTrue(CampsiteSearch.isBookableOn(lakeside, nov6, waitlists))
+    }
+
+    @Test
+    fun hasFilters_ignoresBlankLocationButNotRealLocation() {
+        assertFalse(CampsiteFilter(location = "   ").hasFilters)
+        assertTrue(CampsiteFilter(location = "Jasper").hasFilters)
+    }
+
+    @Test
     fun date_matchesBookingDatesStoredAsAlbertaLocalMidnight() {
         // Nov 6 00:00 in Edmonton (UTC-7) is Nov 6 07:00 UTC
         val edmontonMidnightNov6 = nov6 + 7 * 60 * 60 * 1000
