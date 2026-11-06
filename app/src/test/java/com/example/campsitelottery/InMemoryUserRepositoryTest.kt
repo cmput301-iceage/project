@@ -149,4 +149,68 @@ class InMemoryUserRepositoryTest {
 
         assertNotNull(reported)
     }
+
+    @Test
+    fun updateContactInfo_reportsFailureAndKeepsProfile() {
+        val existing = User(userId = "device-1", name = "Jane")
+        val repo = InMemoryUserRepository(listOf(existing))
+        val error = RuntimeException("offline")
+        repo.failWith = error
+
+        var reported: Exception? = null
+        repo.updateContactInfo("device-1", "New", null, null, { fail("should not succeed") }, { reported = it })
+
+        assertSame(error, reported)
+        assertEquals(existing, repo.peek("device-1"))
+    }
+
+    @Test
+    fun setNotificationsEnabled_reportsFailureAndKeepsPreference() {
+        val repo = InMemoryUserRepository(listOf(User(userId = "device-1")))
+        val error = RuntimeException("offline")
+        repo.failWith = error
+
+        var reported: Exception? = null
+        repo.setNotificationsEnabled("device-1", false, { fail("should not succeed") }, { reported = it })
+
+        assertSame(error, reported)
+        assertTrue(repo.peek("device-1")!!.notificationsEnabled)
+    }
+
+    @Test
+    fun deleteUser_succeedsForMissingProfile() {
+        val repo = InMemoryUserRepository()
+
+        var deleted = false
+        repo.deleteUser("nobody", { deleted = true }, { fail("unexpected failure: $it") })
+
+        assertTrue(deleted)
+    }
+
+    @Test
+    fun peek_returnsNullForUnknownUser() {
+        assertNull(InMemoryUserRepository().peek("nobody"))
+    }
+
+    @Test
+    fun returnedProfiles_areCopiesOfStoredData() {
+        val repo = InMemoryUserRepository(listOf(User(userId = "device-1", name = "Jane")))
+
+        repo.peek("device-1")!!.name = "Changed"
+        repo.getOrCreateUser("device-1", { it.name = "Changed" }, { fail("unexpected failure: $it") })
+
+        assertEquals("Jane", repo.peek("device-1")!!.name)
+    }
+
+    @Test
+    fun clearingFailWith_letsOperationsSucceedAgain() {
+        val repo = InMemoryUserRepository()
+        repo.failWith = RuntimeException("offline")
+        repo.failWith = null
+
+        var result: User? = null
+        repo.getOrCreateUser("device-1", { result = it }, { fail("unexpected failure: $it") })
+
+        assertEquals("device-1", result?.userId)
+    }
 }
