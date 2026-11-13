@@ -32,3 +32,6 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+#firebase key for tool to generate test data
+testTool/venv/*.json
