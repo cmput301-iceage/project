@@ -1,0 +1,108 @@
+{
+    "waitlist_01": {
+        "campsiteIds": [
+            "campsite_01",
+            "campsite_02"
+        ],
+        "ownerId": "owner_01",
+        "lotteryName": "Summer Camping Lottery",
+        "registrationStartDate": "2026-11-02T00:00:00.000Z",
+        "registrationEndDate": "2026-11-22T00:00:00.000Z",
+        "bookingStartDate": "2026-12-02T00:00:00.000Z",
+        "bookingEndDate": "2026-12-17T00:00:00.000Z",
+        "numberOfWinnersToDraw": 2,
+        "maxWaitlistCapacity": 50,
+        "isDrawn": true,
+        "joinedEntrantIds": [
+            "entrant_01",
+            "entrant_02",
+            "entrant_03",
+            "entrant_04",
+            "entrant_05",
+            "entrant_06"
+        ],
+        "selectedWinnerIds": [
+            "entrant_01",
+            "entrant_03"
+        ],
+        "declinedEntrantIds": [
+            "entrant_03"
+        ]
+    },
+    "waitlist_02": {
+        "campsiteIds": [
+            "campsite_08"
+        ],
+        "ownerId": "owner_02",
+        "lotteryName": "Long Weekend Getaway",
+        "registrationStartDate": "2026-11-02T00:00:00.000Z",
+        "registrationEndDate": "2026-11-27T00:00:00.000Z",
+        "bookingStartDate": "2026-12-07T00:00:00.000Z",
+        "bookingEndDate": "2026-12-22T00:00:00.000Z",
+        "numberOfWinnersToDraw": 1,
+        "maxWaitlistCapacity": 30,
+        "isDrawn": true,
+        "joinedEntrantIds": [
+            "entrant_02",
+            "entrant_03",
+            "entrant_04",
+            "entrant_05",
+            "entrant_06",
+            "entrant_07"
+        ],
+        "selectedWinnerIds": [
+            "entrant_05"
+        ],
+        "declinedEntrantIds": []
+    },
+    "waitlist_03": {
+        "campsiteIds": [
+            "campsite_10",
+            "campsite_11"
+        ],
+        "ownerId": "owner_02",
+        "lotteryName": "Fall Wilderness Retreat",
+        "registrationStartDate": "2026-11-02T00:00:00.000Z",
+        "registrationEndDate": "2026-12-02T00:00:00.000Z",
+        "bookingStartDate": "2026-12-12T00:00:00.000Z",
+        "bookingEndDate": "2026-12-27T00:00:00.000Z",
+        "numberOfWinnersToDraw": 3,
+        "maxWaitlistCapacity": null,
+        "isDrawn": false,
+        "joinedEntrantIds": [
+            "entrant_01",
+            "entrant_02",
+            "entrant_03",
+            "entrant_04",
+            "entrant_05",
+            "entrant_06",
+            "entrant_07",
+            "entrant_08",
+            "entrant_09"
+        ],
+        "selectedWinnerIds": [],
+        "declinedEntrantIds": []
+    },
+    "waitlist_04": {
+        "campsiteIds": [
+            "campsite_15"
+        ],
+        "ownerId": "owner_03",
+        "lotteryName": "Winter Cabin Lottery",
+        "registrationStartDate": "2026-11-02T00:00:00.000Z",
+        "registrationEndDate": "2026-12-07T00:00:00.000Z",
+        "bookingStartDate": "2026-12-17T00:00:00.000Z",
+        "bookingEndDate": "2027-01-01T00:00:00.000Z",
+        "numberOfWinnersToDraw": 1,
+        "maxWaitlistCapacity": 20,
+        "isDrawn": false,
+        "joinedEntrantIds": [
+            "entrant_01",
+            "entrant_02",
+            "entrant_04",
+            "entrant_06"
+        ],
+        "selectedWinnerIds": [],
+        "declinedEntrantIds": []
+    }
+}
