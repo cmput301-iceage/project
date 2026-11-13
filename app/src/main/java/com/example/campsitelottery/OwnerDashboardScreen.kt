@@ -31,13 +31,12 @@ import com.google.firebase.firestore.FirebaseFirestore
  * @param navController Navigation controller for routing to registration forms and campsite details.
  */
 @Composable
-fun OwnerDashboardScreen(navController: NavController) {
+fun OwnerDashboardScreen(
+    navController: NavController,
+    deviceId: String
+) {
     val context = LocalContext.current
 
-    // Retrieve the unique device ID to identify the owner (US 01.09.01)
-    val deviceId = remember {
-        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown_device"
-    }
 
     var myCampsites by remember { mutableStateOf(listOf<Campsite>()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -79,11 +78,19 @@ fun OwnerDashboardScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Button(onClick = { navController.navigate("adminDashboard") }, shape = RectangleShape) {
-                Text("View Lotteries")
+            Button(onClick = { navController.navigate("ownerViewReservationsScreen") }, shape = RectangleShape) {
+                Text("View Reservations")
             }
+
             Button(onClick = { navController.navigate("createLottery") }, shape = RectangleShape) {
                 Text("+ Create Lottery")
+            }
+        }
+        Row (
+
+        ) {
+            Button(onClick = { navController.navigate("ownerViewLotteriesScreen") }, shape = RectangleShape) {
+                Text("View Lotteries")
             }
         }
 
@@ -128,9 +135,3 @@ fun OwnerDashboardScreen(navController: NavController) {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun OwnerDashboardScreenPreview() {
-    val dummyNav = rememberNavController()
-    OwnerDashboardScreen(dummyNav)
-}

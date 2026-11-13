@@ -57,8 +57,6 @@ fun LotteryScreen(
     navController: NavController,
     entrantId: String? = null,
 ) {
-    val context = LocalContext.current
-    val userId = entrantId ?: remember(context) { DeviceIdentity.getDeviceId(context) }
 
     var waitlists by remember { mutableStateOf<List<Waitlist>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -66,7 +64,7 @@ fun LotteryScreen(
     var leavingId by remember { mutableStateOf<String?>(null) }
     var campsiteNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
-    DisposableEffect(userId) {
+    DisposableEffect(entrantId) {
         // Client-side filter: Firestore cannot query "array contains this id" and
         // also return every waitlist shape we need without an index on every case.
         val listener = FirebaseFirestore.getInstance()
@@ -81,7 +79,7 @@ fun LotteryScreen(
                 val mine = snapshot?.documents?.mapNotNull { doc ->
                     runCatching { doc.toObject(Waitlist::class.java) }.getOrNull()
                 }
-                    ?.filter { userId in it.joinedEntrantIds }
+                    ?.filter { entrantId in it.joinedEntrantIds }
                     .orEmpty()
                 waitlists = mine
                 isLoading = false
@@ -106,7 +104,7 @@ fun LotteryScreen(
         FirebaseFirestore.getInstance()
             .collection(WAITLISTS_COLLECTION)
             .document(waitlist.waitlistId)
-            .update("joinedEntrantIds", FieldValue.arrayRemove(userId))
+            .update("joinedEntrantIds", FieldValue.arrayRemove(entrantId))
             .addOnSuccessListener { leavingId = null }
             .addOnFailureListener {
                 leavingId = null
@@ -115,8 +113,8 @@ fun LotteryScreen(
     }
 
     fun statusLabel(waitlist: Waitlist): String = when {
-        userId in waitlist.declinedEntrantIds -> "Declined"
-        userId in waitlist.selectedWinnerIds -> "Won — book now"
+        entrantId in waitlist.declinedEntrantIds -> "Declined"
+        entrantId in waitlist.selectedWinnerIds -> "Won — book now"
         waitlist.isDrawn -> "Drawn — not selected"
         waitlist.isRegistrationOpen() -> "Waiting (registration open)"
         else -> "Waiting"
@@ -177,8 +175,8 @@ fun LotteryScreen(
                         val title = waitlist.campsiteIds.joinToString { id ->
                             campsiteNames[id] ?: id
                         }.ifBlank { "Lottery ${waitlist.waitlistId.take(6)}" }
-                        val won = userId in waitlist.selectedWinnerIds &&
-                            userId !in waitlist.declinedEntrantIds
+                        val won = entrantId in waitlist.selectedWinnerIds &&
+                            entrantId !in waitlist.declinedEntrantIds
 
                         Text(title, fontSize = 22.sp)
                         Text("STATUS: ${statusLabel(waitlist)}", fontSize = 14.sp)
@@ -187,7 +185,7 @@ fun LotteryScreen(
                             Button(
                                 onClick = { leaveWaitlist(waitlist) },
                                 enabled = leavingId == null &&
-                                    userId in waitlist.joinedEntrantIds &&
+                                    entrantId in waitlist.joinedEntrantIds &&
                                     !waitlist.isDrawn,
                                 shape = RectangleShape,
                                 modifier = Modifier.testTag("leaveWaitlist_${waitlist.waitlistId}"),
