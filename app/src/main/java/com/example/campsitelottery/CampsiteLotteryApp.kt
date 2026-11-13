@@ -78,6 +78,13 @@ fun CampsiteLotteryApp(
         }
         composable("lottery") { LotteryScreen(navController, entrantId = deviceId) }
         composable("booking") { BookingScreen(navController) }
+        composable("booking/{waitlistId}") { backStackEntry ->
+            BookingScreen(
+                navController,
+                waitlistId = backStackEntry.arguments?.getString("waitlistId"),
+                entrantId = deviceId,
+            )
+        }
         composable("notification") { NotificationScreen(navController) }
         composable("reservation") {
             ReservationScreen(navController, entrantId = deviceId)
@@ -113,5 +120,4 @@ fun CampsiteLotteryApp(
         composable("adminMessages") {AdminMessagesScreen(navController)}
     }
 }
-
 

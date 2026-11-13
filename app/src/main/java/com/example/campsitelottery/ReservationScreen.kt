@@ -103,7 +103,11 @@ fun ReservationScreen(
 
     val active = reservations.filter { it.isActive() }
     val past = reservations.filter { it.isPast() }
-    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val dateFormat = remember {
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }
+    }
 
     fun cancelReservation(reservation: Reservation) {
         if (cancellingId != null) return
