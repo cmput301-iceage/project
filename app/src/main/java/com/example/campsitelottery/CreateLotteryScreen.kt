@@ -88,6 +88,7 @@ fun CreateLotteryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .imePadding()
             .padding(16.dp)
     ) {
