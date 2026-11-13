@@ -103,19 +103,30 @@ fun OwnerViewReservationsScreen(
                     }
 
                     scope.launch { // launch coroutine, gets a snapshot, so not real time update, but reasonable
-                        campsiteNames = reservations.map { it.campsiteId }
-                            .distinct()
-                            .associateWith { id ->
-                                db.collection("campsites").document(id)
-                                    .get().await().getString("name") ?: ""
-                            }
+                        try {
+                            campsiteNames = reservations.map { it.campsiteId }
+                                .distinct()
+                                .associateWith { id ->
+                                    db.collection("campsites").document(id)
+                                        .get().await().getString("name") ?: ""
+                                }
 
-                        entrantNames = reservations.map { it.entrantId }
-                            .distinct()
-                            .associateWith { id ->
-                                db.collection("users").document(id)
-                                    .get().await().getString("name") ?: ""
-                            }
+                            entrantNames = reservations.map { it.entrantId }
+                                .distinct()
+                                .associateWith { id ->
+                                    db.collection("users").document(id)
+                                        .get().await().getString("name") ?: ""
+                                }
+                        }
+                        catch (e: Exception) {
+                            Log.e("View Reservations", "Name Lookup Failed", e)
+                            campsiteNames = reservations.map { it.campsiteId }
+                                .distinct()
+                                .associateWith { it }   // fall back to IDs
+                            entrantNames = reservations.map { it.entrantId }
+                                .distinct()
+                                .associateWith { it }   // fall back to IDs
+                        }
                     }
 
                     reservationList = reservations
@@ -241,11 +252,14 @@ fun OwnerViewReservationsScreen(
                         val entrantName = entrantNames[res.entrantId] ?: "Loading..."
                         var resStatus = "Loading..."
 
-                        if (res.status == ReservationStatus.COMPLETED) resStatus = "Past"
-                        else if (res.status == ReservationStatus.PENDING) resStatus = "Pending"
-                        else if (res.status == ReservationStatus.CONFIRMED) resStatus ="Active"
-                        else if (res.status == ReservationStatus.REJECTED_BY_OWNER) resStatus = "Owner Cancelled"
-                        else "Entrant Cancelled"
+                        resStatus = when (res.status) {
+                            ReservationStatus.COMPLETED -> "Past"
+                            ReservationStatus.PENDING -> "Pending"
+                            ReservationStatus.CONFIRMED -> "Active"
+                            ReservationStatus.REJECTED_BY_OWNER -> "Owner Cancelled"
+                            ReservationStatus.CANCELLED_BY_ENTRANT -> "Entrant Cancelled"
+
+                        }
 
 
 

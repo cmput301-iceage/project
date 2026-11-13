@@ -1,5 +1,6 @@
 package com.example.campsitelottery
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,6 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -77,11 +80,18 @@ fun OwnerViewReservationDetailScreen(
 
                 if (res != null) {
                     scope.launch { // one-time reads, not real time, but reasonable
-                        campsiteName = db.collection("campsites").document(res.campsiteId)
-                            .get().await().getString("name") ?: ""
+                        try {
+                            campsiteName = db.collection("campsites").document(res.campsiteId)
+                                .get().await().getString("name") ?: ""
 
-                        entrantName = db.collection("users").document(res.entrantId)
-                            .get().await().getString("name") ?: ""
+                            entrantName = db.collection("users").document(res.entrantId)
+                                .get().await().getString("name") ?: ""
+                        } catch (e: Exception) {
+                            Log.e("ViewReservationDetails", "Failed Name lookup",e)
+                            campsiteName = res.campsiteId // fall back on IDs
+                            entrantName = res.entrantId // fall back on IDs
+                        }
+
                     }
                 }
 
@@ -132,21 +142,21 @@ fun OwnerViewReservationDetailScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text("Reservation", style = MaterialTheme.typography.headlineMedium)
 
                     var resStatus = "Loading..."
 
-                    if (reservation!!.status == ReservationStatus.COMPLETED) resStatus = "Past"
-                    else if (reservation!!.status == ReservationStatus.PENDING) resStatus =
-                        "Pending"
-                    else if (reservation!!.status == ReservationStatus.CONFIRMED) resStatus =
-                        "Active"
-                    else if (reservation!!.status == ReservationStatus.REJECTED_BY_OWNER) resStatus =
-                        "Owner Cancelled"
-                    else "Entrant Cancelled"
+                    resStatus = when (reservation!!.status) {
+                        ReservationStatus.COMPLETED -> "Past"
+                        ReservationStatus.PENDING -> "Pending"
+                        ReservationStatus.CONFIRMED -> "Active"
+                        ReservationStatus.REJECTED_BY_OWNER -> "Owner Cancelled"
+                        ReservationStatus.CANCELLED_BY_ENTRANT -> "Entrant Cancelled"
+                    }
 
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(
@@ -186,12 +196,12 @@ fun OwnerViewReservationDetailScreen(
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            InfoRow("Check-in", reservation!!.checkInDate.toString())
-                            InfoRow("Check-out", reservation!!.checkOutDate.toString())
+                            InfoRow("Check-in", formatDate(reservation!!.checkInDate))
+                            InfoRow("Check-out", formatDate(reservation!!.checkOutDate))
 
                             Text("Reserved dates", style = MaterialTheme.typography.labelLarge, color = backgroundColor)
                             reservation!!.reservedDates.forEach { date ->
-                                Text("- ${date.toString()}", color = backgroundColor)
+                                Text("- ${formatDate(date)}", color = backgroundColor)
                             }
                         }
                     }
@@ -203,8 +213,8 @@ fun OwnerViewReservationDetailScreen(
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            InfoRow("Created", reservation!!.createdAt.toString())
-                            InfoRow("Updated", reservation!!.updatedAt.toString())
+                            InfoRow("Created", formatDate(reservation!!.createdAt))
+                            InfoRow("Updated", formatDate(reservation!!.updatedAt))
                         }
                     }
 

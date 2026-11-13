@@ -30,9 +30,10 @@ import androidx.navigation.compose.rememberNavController
 @Composable
 fun CampsiteLotteryApp(
     userRepository: UserRepository = remember { FirestoreUserRepository() },
-    deviceId: String = LocalContext.current.let { context ->
-        remember(context) { DeviceIdentity.getDeviceId(context) }
-    }
+//    deviceId: String = LocalContext.current.let { context ->
+//        remember(context) { DeviceIdentity.getDeviceId(context) }
+//    }
+    deviceId: String = "owner_01"
 ) {
 
 
@@ -100,11 +101,11 @@ fun CampsiteLotteryApp(
                 deviceId
             )}
         composable("registerCampsite") {
-            RegisterCampsiteScreen(navController, campsiteId = null)
+            RegisterCampsiteScreen(navController, campsiteId = null, deviceId)
         }
         composable("registerCampsite/{campsiteId}") { backStackEntry ->
             val campsiteId = backStackEntry.arguments?.getString("campsiteId")
-            RegisterCampsiteScreen(navController, campsiteId = campsiteId)
+            RegisterCampsiteScreen(navController, campsiteId = campsiteId, deviceId)
         }
         composable("createLottery") {
             CreateLotteryScreen(

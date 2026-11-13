@@ -44,6 +44,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 
 @Composable
@@ -61,6 +65,7 @@ fun OwnerViewLotteriesScreen(
 
     var campsiteNames: Map<String, String> by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var entrantNames: Map<String, String> by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+
 
 
     DisposableEffect(ownerId) {
@@ -83,21 +88,33 @@ fun OwnerViewLotteriesScreen(
                     }
 
                     scope.launch { // launch coroutine, gets a snapshot, so not real time update, but reasonable
-                        campsiteNames = lotteries
-                            .flatMap { it.campsiteIds }
-                            .distinct()
-                            .associateWith { id ->
-                                db.collection("campsites").document(id)
-                                    .get().await().getString("name") ?: ""
-                            }
+                        try {
+                            campsiteNames = lotteries
+                                .flatMap { it.campsiteIds }
+                                .distinct()
+                                .associateWith { id ->
+                                    db.collection("campsites").document(id)
+                                        .get().await().getString("name") ?: ""
+                                }
 
-                        entrantNames = lotteries
-                            .flatMap { it.joinedEntrantIds }
-                            .distinct()
-                            .associateWith { id ->
-                                db.collection("users").document(id)
-                                    .get().await().getString("name") ?: ""
-                            }
+                            entrantNames = lotteries
+                                .flatMap { it.joinedEntrantIds }
+                                .distinct()
+                                .associateWith { id ->
+                                    db.collection("users").document(id)
+                                        .get().await().getString("name") ?: ""
+                                }
+                        } catch(e: Exception) {
+                            Log.e("ViewLotteries", "Failed to lookup names", e)
+                            campsiteNames = lotteries
+                                .flatMap { it.campsiteIds }
+                                .distinct()
+                                .associateWith { it }   // fall back to IDs
+                            entrantNames = lotteries
+                                .flatMap { it.joinedEntrantIds }
+                                .distinct()
+                                .associateWith { it }   // fall back to IDs
+                        }
                     }
 
                     lotteryList = lotteries
@@ -159,7 +176,7 @@ fun OwnerViewLotteriesScreen(
                              campsiteNames[id] ?: id
                          }
                         val entrantName = lottery.joinedEntrantIds ?: "Loading..."
-                        val regEndDate = lottery.registrationEndDate.toString()
+                        val regEndDate = formatDate(lottery.registrationEndDate)
 
                         Card(
                             modifier = Modifier

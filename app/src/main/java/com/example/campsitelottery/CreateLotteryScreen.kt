@@ -43,14 +43,14 @@ fun CreateLotteryScreen(
     var selectedCampsiteIds by remember { mutableStateOf(setOf<String>()) }
     var lotteryName by remember { mutableStateOf("") }
 
-    var regStartStr by remember { mutableStateOf("2026-06-01") }
-    var regEndStr by remember { mutableStateOf("2026-06-08") }
-    var bookStartStr by remember { mutableStateOf("2026-06-10") }
-    var bookEndStr by remember { mutableStateOf("2026-06-15") }
-    var numberOfWinners by remember { mutableStateOf("5") }
+    var regStartStr by remember { mutableStateOf("") }
+    var regEndStr by remember { mutableStateOf("") }
+    var bookStartStr by remember { mutableStateOf("") }
+    var bookEndStr by remember { mutableStateOf("") }
+    var numberOfWinners by remember { mutableStateOf("") }
     var maxCapacity by remember { mutableStateOf("") }
 
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd", LocalLocale.current.platformLocale)
+
     val scrollState = rememberScrollState()
 
     // Fetch the owner's registered campsites from Firestore
@@ -191,10 +191,15 @@ fun CreateLotteryScreen(
         Button(
             onClick = {
                 try {
-                    val regStart = dateFormat.parse(regStartStr)
-                    val regEnd = dateFormat.parse(regEndStr)
-                    val bookStart = dateFormat.parse(bookStartStr)
-                    val bookEnd = dateFormat.parse(bookEndStr)
+                    val yearMonthDayFormat = SimpleDateFormat("yyyy-M-dd", Locale.US).apply {
+                        timeZone = TimeZone.getTimeZone("UTC")
+                    }
+
+
+                    val regStart = yearMonthDayFormat.parse(regStartStr)
+                    val regEnd = yearMonthDayFormat.parse(regEndStr)
+                    val bookStart = yearMonthDayFormat.parse(bookStartStr)
+                    val bookEnd = yearMonthDayFormat.parse(bookEndStr)
                     val winnersCount = numberOfWinners.toIntOrNull() ?: 1
                     val capacity = maxCapacity.toIntOrNull()
 
@@ -242,6 +247,7 @@ fun CreateLotteryScreen(
 
                 } catch (e: Exception) {
                     // Handle parsing errors
+                    Log.e("CreateLottery", "Failed to parse input", e)
                 }
             },
             shape = RectangleShape,

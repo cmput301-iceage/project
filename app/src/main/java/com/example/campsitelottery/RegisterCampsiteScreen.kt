@@ -31,9 +31,10 @@ import com.example.campsitelottery.DeviceIdentity
 @Composable
 fun RegisterCampsiteScreen(
     navController: NavController,
-    campsiteId: String? = null // Null = Registering new; Non-null = Editing existing
+    campsiteId: String? = null, // Null = Registering new; Non-null = Editing existing
+    deviceId: String
 ) {
-    val context = LocalContext.current
+
 
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -145,8 +146,7 @@ fun RegisterCampsiteScreen(
 
             Button(
                 onClick = {
-                    val deviceId = DeviceIdentity.getDeviceId(context)
-                    val resolvedOwnerId = if (originalOwnerId.isNotBlank()) originalOwnerId else deviceId
+
 
                     val campsiteToSave = Campsite(
                         campsiteId = campsiteId ?: "",
@@ -158,7 +158,7 @@ fun RegisterCampsiteScreen(
                         rules = rules,
                         cancellationPolicy = cancellationPolicy,
                         tags = tagsInput.split(",").map { it.trim() }.filter { it.isNotEmpty() },
-                        ownerId = resolvedOwnerId
+                        ownerId = deviceId
                     )
 
                     val dbCollection = FirebaseFirestore.getInstance().collection("campsites")

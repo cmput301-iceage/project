@@ -40,6 +40,10 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 @Composable
 fun OwnerViewLotteryDetails(
@@ -59,6 +63,7 @@ fun OwnerViewLotteryDetails(
     var waitlist by remember { mutableStateOf<Waitlist?>(null) }
     var campsiteNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var entrantNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+
 
 
     DisposableEffect(waitlistId) {
@@ -96,6 +101,15 @@ fun OwnerViewLotteryDetails(
                                 }
                         } catch (e: Exception) {
                             Log.e("Waitlist", "Name lookup failed", e)
+                            campsiteNames = wlist.campsiteIds
+                                .filter { it.isNotBlank() }
+                                .distinct()
+                                .associateWith { it }   // fall back to IDs
+                            entrantNames = wlist.joinedEntrantIds
+                                .filter { it.isNotBlank() }
+                                .distinct()
+                                .associateWith { it }   // fall back to IDs
+
                         }
                     }
                 }
@@ -219,7 +233,7 @@ fun OwnerViewLotteryDetails(
                         ) {
                             InfoRow(
                                 "Number of Winners",
-                                waitlist!!.registrationStartDate.toString()
+                                waitlist!!.numberOfWinnersToDraw.toString()
                             )
                             InfoRow(
                                 "Waitlist Capacity",
@@ -241,48 +255,35 @@ fun OwnerViewLotteryDetails(
                         ) {
                             InfoRow(
                                 "Registration Start Date",
-                                waitlist!!.registrationStartDate.toString()
+                                formatDate(waitlist!!.registrationStartDate)
                             )
                             InfoRow(
                                 "Registration End Date",
-                                waitlist!!.registrationEndDate.toString()
+                                formatDate(waitlist!!.registrationEndDate)
                             )
                             InfoRow(
                                 "Booking Start Date",
-                                waitlist!!.bookingStartDate.toString()
-                            )
-                            InfoRow("Booking End Date", waitlist!!.bookingEndDate.toString())
-
-                        }
-                    }
-
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            Modifier
-                                .background(buttonColor)
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            InfoRow(
-                                "Registration Start Date",
-                                waitlist!!.registrationStartDate.toString()
+                                formatDate(waitlist!!.bookingStartDate)
                             )
                             InfoRow(
-                                "Registration End Date",
-                                waitlist!!.registrationEndDate.toString()
+                                "Booking End Date",
+                                formatDate(waitlist!!.bookingEndDate)
                             )
-                            InfoRow(
-                                "Booking Start Date",
-                                waitlist!!.bookingStartDate.toString()
-                            )
-                            InfoRow("Booking End Date", waitlist!!.bookingEndDate.toString())
 
                         }
                     }
 
 
 
-                    Card(modifier = Modifier.fillMaxWidth()) {
+
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = buttonColor,
+                            contentColor = backgroundColor
+                        )
+                    ) {
                         Column(
                             Modifier
                                 .background(buttonColor)
@@ -293,34 +294,45 @@ fun OwnerViewLotteryDetails(
                             Row() {
                                 Text("Entrants", color = backgroundColor)
                             }
-                            for (entrant in waitlist!!.joinedEntrantIds) {
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = backgroundColor,
-                                        contentColor = buttonColor
-                                    )
-                                ) {
-                                    Row(
+                            if (waitlist!!.joinedEntrantIds.isNotEmpty()) {
+                                for (entrant in waitlist!!.joinedEntrantIds) {
+                                    Card(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                                            .background(backgroundColor)
-                                    ) {
-                                        Text(
-                                            entrantNames[entrant] ?: entrant,
-                                            fontSize = 20.sp
+                                            .fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = backgroundColor,
+                                            contentColor = buttonColor
                                         )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                                .background(backgroundColor)
+                                        ) {
+                                            Text(
+                                                entrantNames[entrant] ?: entrant,
+                                                fontSize = 20.sp
+                                            )
+                                        }
                                     }
                                 }
+                            }
+                            else {
+                                Text("No Entrants Yet")
                             }
 
                         }
                     }
 
 
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = buttonColor,
+                            contentColor = backgroundColor
+                        )
+                    ) {
                         Column(
                             Modifier
                                 .background(buttonColor)
@@ -331,34 +343,47 @@ fun OwnerViewLotteryDetails(
                             Row() {
                                 Text("Winners", color = backgroundColor)
                             }
-                            for (entrant in waitlist!!.selectedWinnerIds) {
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = backgroundColor,
-                                        contentColor = buttonColor
-                                    )
-                                ) {
-                                    Row(
+
+                            if (waitlist!!.selectedWinnerIds.isNotEmpty()) {
+                                for (entrant in waitlist!!.selectedWinnerIds) {
+                                    Card(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                                            .background(backgroundColor)
-                                    ) {
-                                        Text(
-                                            entrantNames[entrant] ?: entrant,
-                                            fontSize = 20.sp
+                                            .fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = backgroundColor,
+                                            contentColor = buttonColor
                                         )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                                .background(backgroundColor)
+                                        ) {
+                                            Text(
+                                                entrantNames[entrant] ?: entrant,
+                                                fontSize = 20.sp
+                                            )
+                                        }
                                     }
                                 }
                             }
+                            else {
+                                Text("No Winners Yet")
+                            }
+
 
                         }
                     }
 
 
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = buttonColor,
+                            contentColor = backgroundColor
+                        )
+                    ) {
                         Column(
                             Modifier
                                 .background(buttonColor)
@@ -368,27 +393,33 @@ fun OwnerViewLotteryDetails(
                             Row() {
                                 Text("Declined Winners", color = backgroundColor)
                             }
-                            for (entrant in waitlist!!.declinedEntrantIds) {
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = backgroundColor,
-                                        contentColor = buttonColor
-                                    )
-                                ) {
-                                    Row(
+
+                            if (waitlist!!.declinedEntrantIds.isNotEmpty()) {
+                                for (entrant in waitlist!!.declinedEntrantIds) {
+                                    Card(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                                            .background(backgroundColor)
-                                    ) {
-                                        Text(
-                                            entrantNames[entrant] ?: entrant,
-                                            fontSize = 20.sp
+                                            .fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = backgroundColor,
+                                            contentColor = buttonColor
                                         )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                                .background(backgroundColor)
+                                        ) {
+                                            Text(
+                                                entrantNames[entrant] ?: entrant,
+                                                fontSize = 20.sp
+                                            )
+                                        }
                                     }
                                 }
+                            }
+                            else {
+                                Text("No Declined Winners")
                             }
                         }
                     }
