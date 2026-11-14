@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -103,7 +104,7 @@ fun ReservationScreen(
 
     val active = reservations.filter { it.isActive() }
     val past = reservations.filter { it.isPast() }
-    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val dateFormat = remember { dateISOFormat() }
 
     fun cancelReservation(reservation: Reservation) {
         if (cancellingId != null) return
@@ -128,6 +129,7 @@ fun ReservationScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(16.dp),
     ) {
         Row(

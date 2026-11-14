@@ -6,6 +6,8 @@
  */
 package com.example.campsitelottery
 
+import android.util.Log
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,8 +17,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -38,8 +45,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import java.util.Date
 
 private const val WAITLISTS_COLLECTION = "waitlists"
 
@@ -54,9 +63,9 @@ private const val WAITLISTS_COLLECTION = "waitlists"
 fun CampsiteInfoScreen(
     navController: NavController,
     campsiteId: String,
+    deviceId: String
 ) {
-    val context = LocalContext.current
-    val currentDeviceId = remember(context) { DeviceIdentity.getDeviceId(context) }
+
 
     var campsite by remember { mutableStateOf<Campsite?>(null) }
     var currentUser by remember { mutableStateOf<User?>(null) }
@@ -72,7 +81,7 @@ fun CampsiteInfoScreen(
         db.collection("campsites").document(campsiteId).get()
             .addOnSuccessListener { doc ->
                 campsite = doc.toObject(Campsite::class.java)
-                db.collection("users").document(currentDeviceId).get()
+                db.collection("users").document(deviceId).get()
                     .addOnSuccessListener { userDoc ->
                         currentUser = userDoc.toObject(User::class.java)
                         isLoading = false
@@ -99,15 +108,53 @@ fun CampsiteInfoScreen(
         onDispose { listener.remove() }
     }
 
+    var reservedDates by remember { mutableStateOf<List<Date>>(emptyList()) }
+    var hasError by remember { mutableStateOf(false) }
+
+    DisposableEffect(campsiteId) {
+        isLoading = true
+        hasError = false
+
+        val listener = FirebaseFirestore.getInstance()
+            .collection("reservations")
+            .whereEqualTo("campsiteId", campsiteId)
+            .whereIn(
+                "status",
+                listOf(ReservationStatus.PENDING.name, ReservationStatus.CONFIRMED.name)
+            )
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null) {
+                    Log.e("ReservedDates", "Failed to load", error)
+                    hasError = true
+                    isLoading = false
+                    return@addSnapshotListener
+                }
+
+                val dates = snapshot.documents
+                    .flatMap { doc ->
+                        (doc.get("reservedDates") as? List<*>)
+                            ?.mapNotNull { (it as? Timestamp)?.toDate() }
+                            ?: emptyList()
+                    }
+                    .distinct()
+                    .sorted()
+
+                reservedDates = dates
+                isLoading = false
+            }
+
+        onDispose { listener.remove() }
+    }
+
     val joinable = openWaitlists.filter { it.isRegistrationOpen() && !it.isFull() }
-    val alreadyJoined = openWaitlists.any { currentDeviceId in it.joinedEntrantIds }
-    val activeJoined = openWaitlists.firstOrNull { currentDeviceId in it.joinedEntrantIds }
+    val alreadyJoined = openWaitlists.any { deviceId in it.joinedEntrantIds }
+    val activeJoined = openWaitlists.firstOrNull { deviceId in it.joinedEntrantIds }
 
     fun joinWaitlist() {
         if (isJoining) return
         joinError = null
         joinMessage = null
-        val target = joinable.firstOrNull { currentDeviceId !in it.joinedEntrantIds }
+        val target = joinable.firstOrNull { deviceId !in it.joinedEntrantIds }
         if (target == null) {
             joinError = when {
                 alreadyJoined -> "You are already on this campsite's waitlist."
@@ -120,7 +167,7 @@ fun CampsiteInfoScreen(
         FirebaseFirestore.getInstance()
             .collection(WAITLISTS_COLLECTION)
             .document(target.waitlistId)
-            .update("joinedEntrantIds", FieldValue.arrayUnion(currentDeviceId))
+            .update("joinedEntrantIds", FieldValue.arrayUnion(deviceId))
             .addOnSuccessListener {
                 isJoining = false
                 joinMessage = "Joined the lottery waitlist."
@@ -140,7 +187,7 @@ fun CampsiteInfoScreen(
         FirebaseFirestore.getInstance()
             .collection(WAITLISTS_COLLECTION)
             .document(target.waitlistId)
-            .update("joinedEntrantIds", FieldValue.arrayRemove(currentDeviceId))
+            .update("joinedEntrantIds", FieldValue.arrayRemove(deviceId))
             .addOnSuccessListener {
                 isJoining = false
                 joinMessage = "Left the lottery waitlist."
@@ -151,13 +198,16 @@ fun CampsiteInfoScreen(
             }
     }
 
-    val isOwnerOfSite = campsite != null && campsite!!.ownerId == currentDeviceId
+    val isOwnerOfSite = campsite != null && campsite!!.ownerId == deviceId
     val isAdmin = currentUser?.isAdmin == true
     val canEdit = isOwnerOfSite
     val canDelete = isOwnerOfSite || isAdmin
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(16.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -212,6 +262,39 @@ fun CampsiteInfoScreen(
             joinMessage?.let {
                 Text(it, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            if (isOwnerOfSite) {
+                Column(
+                    modifier = Modifier.weight(1f)   // takes the remaining space
+                ) {
+                    if (!reservedDates.isEmpty()) {
+
+                        Text("Reserved Dates", fontSize = 24.sp)
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .padding(5.dp)
+                                .fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(reservedDates) { date ->
+                                Card(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                                    ) { Text(date.toString(), fontSize = 20.sp) }
+                                }
+                            }
+                        }
+                    }
+                    else {
+
+                        Text("No Dates Reserved", fontSize = 24.sp)
+
+                    }
+                }
             }
 
             if (canEdit) {
@@ -283,5 +366,5 @@ fun CampsiteInfoScreen(
 @Preview(showBackground = true)
 @Composable
 fun CampsiteInfoScreenPreview() {
-    CampsiteInfoScreen(rememberNavController(), campsiteId = "preview_id")
+    CampsiteInfoScreen(rememberNavController(), campsiteId = "preview_id", deviceId = "dev_id")
 }

@@ -6,6 +6,7 @@
  */
 package com.example.campsitelottery
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +22,8 @@ import androidx.navigation.NavController
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.platform.LocalLocale
+import kotlinx.coroutines.tasks.await
 
 /**
  * Composable screen allowing a campsite owner to create and publish a new lottery waitlist.
@@ -28,23 +31,30 @@ import java.util.*
  * @param navController Navigation controller for routing back to the dashboard.
  */
 @Composable
-fun CreateLotteryScreen(navController: NavController) {
-    val context = LocalContext.current
-    val deviceId = DeviceIdentity.getDeviceId(context)
+fun CreateLotteryScreen(
+    navController: NavController,
+    deviceId: String,
+    waitlistId: String? = null
+) {
+
+    val isEditing = waitlistId != null
 
     var ownerCampsites by remember { mutableStateOf(listOf<Campsite>()) }
     var selectedCampsiteIds by remember { mutableStateOf(setOf<String>()) }
     var lotteryName by remember { mutableStateOf("") }
 
-    var regStartStr by remember { mutableStateOf("2026-06-01") }
-    var regEndStr by remember { mutableStateOf("2026-06-08") }
-    var bookStartStr by remember { mutableStateOf("2026-06-10") }
-    var bookEndStr by remember { mutableStateOf("2026-06-15") }
-    var numberOfWinners by remember { mutableStateOf("5") }
+    var regStartStr by remember { mutableStateOf("") }
+    var regEndStr by remember { mutableStateOf("") }
+    var bookStartStr by remember { mutableStateOf("") }
+    var bookEndStr by remember { mutableStateOf("") }
+    var numberOfWinners by remember { mutableStateOf("") }
     var maxCapacity by remember { mutableStateOf("") }
 
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
     val scrollState = rememberScrollState()
+
+
+
 
     // Fetch the owner's registered campsites from Firestore
     LaunchedEffect(deviceId) {
@@ -56,9 +66,32 @@ fun CreateLotteryScreen(navController: NavController) {
             }
     }
 
+    LaunchedEffect(waitlistId) {
+        if (waitlistId == null) return@LaunchedEffect
+        try {
+            val wl = FirebaseFirestore.getInstance()
+                .collection("waitlists").document(waitlistId)
+                .get().await()
+                .toObject(Waitlist::class.java) ?: return@LaunchedEffect
+
+            selectedCampsiteIds = wl.campsiteIds.toSet()
+            lotteryName = wl.lotteryName
+            regStartStr = wl.registrationStartDate?.let { dateISOFormat().format(it) } ?: ""
+            regEndStr = wl.registrationEndDate?.let { dateISOFormat().format(it) } ?: ""
+            bookStartStr = wl.bookingStartDate?.let { dateISOFormat().format(it) } ?: ""
+            bookEndStr = wl.bookingEndDate?.let { dateISOFormat().format(it) } ?: ""
+            numberOfWinners = wl.numberOfWinnersToDraw.toString()
+            maxCapacity = wl.maxWaitlistCapacity?.toString() ?: ""
+        } catch (e: Exception) {
+            Log.e("CreateLottery", "Failed to load lottery", e)
+        }
+    }
+
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .imePadding()
             .padding(16.dp)
     ) {
@@ -67,7 +100,7 @@ fun CreateLotteryScreen(navController: NavController) {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Create Campsite Lottery", fontSize = 24.sp)
+        Text(text = if(isEditing) "Edit Campsite Lottery" else "Create Campsite Lottery", fontSize = 24.sp)
         Spacer(modifier = Modifier.height(16.dp))
 
         Column(
@@ -77,29 +110,31 @@ fun CreateLotteryScreen(navController: NavController) {
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(text = "Select Campsite(s) for Lottery:", fontSize = 16.sp)
+            if (!isEditing){
+                Text(text = "Select Campsite(s) for Lottery:", fontSize = 16.sp)
 
-            if (ownerCampsites.isEmpty()) {
-                Text(text = "You must register a campsite first before creating a lottery.")
-            } else {
-                ownerCampsites.forEach { campsite ->
-                    val isSelected = selectedCampsiteIds.contains(campsite.campsiteId)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = isSelected,
-                            onCheckedChange = { checked ->
-                                selectedCampsiteIds = if (checked) {
-                                    selectedCampsiteIds + campsite.campsiteId
-                                } else {
-                                    selectedCampsiteIds - campsite.campsiteId
+                if (ownerCampsites.isEmpty()) {
+                    Text(text = "You must register a campsite first before creating a lottery.")
+                } else {
+                    ownerCampsites.forEach { campsite ->
+                        val isSelected = selectedCampsiteIds.contains(campsite.campsiteId)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { checked ->
+                                    selectedCampsiteIds = if (checked) {
+                                        selectedCampsiteIds + campsite.campsiteId
+                                    } else {
+                                        selectedCampsiteIds - campsite.campsiteId
+                                    }
                                 }
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "${campsite.name} (${campsite.address})")
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = "${campsite.name} (${campsite.address})")
+                        }
                     }
                 }
             }
@@ -160,40 +195,68 @@ fun CreateLotteryScreen(navController: NavController) {
         Button(
             onClick = {
                 try {
-                    val regStart = dateFormat.parse(regStartStr)
-                    val regEnd = dateFormat.parse(regEndStr)
-                    val bookStart = dateFormat.parse(bookStartStr)
-                    val bookEnd = dateFormat.parse(bookEndStr)
+
+
+
+                    val regStart = dateISOFormat().parse(regStartStr)
+                    val regEnd = dateISOFormat().parse(regEndStr)
+                    val bookStart = dateISOFormat().parse(bookStartStr)
+                    val bookEnd = dateISOFormat().parse(bookEndStr)
                     val winnersCount = numberOfWinners.toIntOrNull() ?: 1
                     val capacity = maxCapacity.toIntOrNull()
 
-                    val newWaitlist = Waitlist(
-                        campsiteIds = selectedCampsiteIds.toList(),
-                        ownerId = deviceId,
-                        lotteryName = lotteryName.ifBlank { "Campsite Lottery" },
-                        registrationStartDate = regStart,
-                        registrationEndDate = regEnd,
-                        bookingStartDate = bookStart,
-                        bookingEndDate = bookEnd,
-                        numberOfWinnersToDraw = winnersCount,
-                        maxWaitlistCapacity = capacity,
-                        isDrawn = false
-                    )
+                    val db = FirebaseFirestore.getInstance()
 
-                    FirebaseFirestore.getInstance().collection("waitlists")
-                        .add(newWaitlist)
-                        .addOnSuccessListener {
-                            navController.popBackStack()
-                        }
+                    if (waitlistId != null) {
+                        // winners, and isDrawn are left untouched
+                        db.collection("waitlists").document(waitlistId)
+                            .update(
+                                mapOf(
+                                    "campsiteIds" to selectedCampsiteIds.toList(),
+                                    "lotteryName" to lotteryName.ifBlank { "Campsite Lottery" },
+                                    "registrationStartDate" to regStart,
+                                    "registrationEndDate" to regEnd,
+                                    "bookingStartDate" to bookStart,
+                                    "bookingEndDate" to bookEnd,
+                                    "numberOfWinnersToDraw" to winnersCount,
+                                    "maxWaitlistCapacity" to capacity
+                                )
+                            )
+                            .addOnSuccessListener { navController.popBackStack() }
+                            .addOnFailureListener { e ->
+                                Log.e("EditLottery", "Failed to save lottery", e)
+                            }
+                    } else {
+                        val newWaitlist = Waitlist(
+                            campsiteIds = selectedCampsiteIds.toList(),
+                            ownerId = deviceId,
+                            lotteryName = lotteryName.ifBlank { "Campsite Lottery" },
+                            registrationStartDate = regStart,
+                            registrationEndDate = regEnd,
+                            bookingStartDate = bookStart,
+                            bookingEndDate = bookEnd,
+                            numberOfWinnersToDraw = winnersCount,
+                            maxWaitlistCapacity = capacity,
+                            isDrawn = false
+                        )
+
+                        db.collection("waitlists").add(newWaitlist)
+                            .addOnSuccessListener { navController.popBackStack() }
+                            .addOnFailureListener { e ->
+                                Log.e("CreateLottery", "Failed to save lottery", e)
+                            }
+                    }
+
                 } catch (e: Exception) {
                     // Handle parsing errors
+                    Log.e("CreateLottery", "Failed to parse input", e)
                 }
             },
             shape = RectangleShape,
             modifier = Modifier.fillMaxWidth(),
             enabled = selectedCampsiteIds.isNotEmpty()
         ) {
-            Text("Publish Lottery Listing")
+            Text(if (waitlistId != null) "Save Changes" else "Publish Lottery Listing")
         }
     }
 }

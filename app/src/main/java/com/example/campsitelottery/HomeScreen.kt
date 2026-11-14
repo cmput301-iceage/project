@@ -129,7 +129,10 @@ fun HomeScreen(
 
     // Format Screen Here
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(16.dp),
     ) {
 
         Row(
