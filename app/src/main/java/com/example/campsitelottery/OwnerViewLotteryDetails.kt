@@ -1,9 +1,7 @@
 package com.example.campsitelottery
 
-import android.R
 import android.util.Log
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -37,14 +33,9 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 
 @Composable
 fun OwnerViewLotteryDetails(
@@ -257,19 +248,19 @@ fun OwnerViewLotteryDetails(
                         ) {
                             InfoRow(
                                 "Registration Start Date",
-                                formatDate(waitlist!!.registrationStartDate)
+                                dateLongUIFormat(waitlist!!.registrationStartDate)
                             )
                             InfoRow(
                                 "Registration End Date",
-                                formatDate(waitlist!!.registrationEndDate)
+                                dateLongUIFormat(waitlist!!.registrationEndDate)
                             )
                             InfoRow(
                                 "Booking Start Date",
-                                formatDate(waitlist!!.bookingStartDate)
+                                dateLongUIFormat(waitlist!!.bookingStartDate)
                             )
                             InfoRow(
                                 "Booking End Date",
-                                formatDate(waitlist!!.bookingEndDate)
+                                dateLongUIFormat(waitlist!!.bookingEndDate)
                             )
 
                         }

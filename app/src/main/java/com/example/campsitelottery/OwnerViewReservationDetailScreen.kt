@@ -199,12 +199,12 @@ fun OwnerViewReservationDetailScreen(
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            InfoRow("Check-in", formatDate(reservation!!.checkInDate))
-                            InfoRow("Check-out", formatDate(reservation!!.checkOutDate))
+                            InfoRow("Check-in", dateLongUIFormat(reservation!!.checkInDate))
+                            InfoRow("Check-out", dateLongUIFormat(reservation!!.checkOutDate))
 
                             Text("Reserved dates", style = MaterialTheme.typography.labelLarge, color = backgroundColor)
                             reservation!!.reservedDates.forEach { date ->
-                                Text("- ${formatDate(date)}", color = backgroundColor)
+                                Text("- ${dateLongUIFormat(date)}", color = backgroundColor)
                             }
                         }
                     }
@@ -216,8 +216,8 @@ fun OwnerViewReservationDetailScreen(
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            InfoRow("Created", formatDate(reservation!!.createdAt))
-                            InfoRow("Updated", formatDate(reservation!!.updatedAt))
+                            InfoRow("Created", dateLongUIFormat(reservation!!.createdAt))
+                            InfoRow("Updated", dateLongUIFormat(reservation!!.updatedAt))
                         }
                     }
 

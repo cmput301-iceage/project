@@ -53,6 +53,9 @@ fun CreateLotteryScreen(
 
     val scrollState = rememberScrollState()
 
+
+
+
     // Fetch the owner's registered campsites from Firestore
     LaunchedEffect(deviceId) {
         FirebaseFirestore.getInstance().collection("campsites")
@@ -73,10 +76,10 @@ fun CreateLotteryScreen(
 
             selectedCampsiteIds = wl.campsiteIds.toSet()
             lotteryName = wl.lotteryName
-            regStartStr = wl.registrationStartDate?.let { dateFormat.format(it) } ?: ""
-            regEndStr = wl.registrationEndDate?.let { dateFormat.format(it) } ?: ""
-            bookStartStr = wl.bookingStartDate?.let { dateFormat.format(it) } ?: ""
-            bookEndStr = wl.bookingEndDate?.let { dateFormat.format(it) } ?: ""
+            regStartStr = wl.registrationStartDate?.let { dateISOFormat().format(it) } ?: ""
+            regEndStr = wl.registrationEndDate?.let { dateISOFormat().format(it) } ?: ""
+            bookStartStr = wl.bookingStartDate?.let { dateISOFormat().format(it) } ?: ""
+            bookEndStr = wl.bookingEndDate?.let { dateISOFormat().format(it) } ?: ""
             numberOfWinners = wl.numberOfWinnersToDraw.toString()
             maxCapacity = wl.maxWaitlistCapacity?.toString() ?: ""
         } catch (e: Exception) {
@@ -192,15 +195,13 @@ fun CreateLotteryScreen(
         Button(
             onClick = {
                 try {
-                    val yearMonthDayFormat = SimpleDateFormat("yyyy-M-dd", Locale.US).apply {
-                        timeZone = TimeZone.getTimeZone("UTC")
-                    }
 
 
-                    val regStart = yearMonthDayFormat.parse(regStartStr)
-                    val regEnd = yearMonthDayFormat.parse(regEndStr)
-                    val bookStart = yearMonthDayFormat.parse(bookStartStr)
-                    val bookEnd = yearMonthDayFormat.parse(bookEndStr)
+
+                    val regStart = dateISOFormat().parse(regStartStr)
+                    val regEnd = dateISOFormat().parse(regEndStr)
+                    val bookStart = dateISOFormat().parse(bookStartStr)
+                    val bookEnd = dateISOFormat().parse(bookEndStr)
                     val winnersCount = numberOfWinners.toIntOrNull() ?: 1
                     val capacity = maxCapacity.toIntOrNull()
 
