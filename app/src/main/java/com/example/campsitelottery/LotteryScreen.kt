@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -57,8 +58,6 @@ fun LotteryScreen(
     navController: NavController,
     entrantId: String? = null,
 ) {
-    val context = LocalContext.current
-    val userId = entrantId ?: remember(context) { DeviceIdentity.getDeviceId(context) }
 
     var waitlists by remember { mutableStateOf<List<Waitlist>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -66,7 +65,7 @@ fun LotteryScreen(
     var leavingId by remember { mutableStateOf<String?>(null) }
     var campsiteNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
-    DisposableEffect(userId) {
+    DisposableEffect(entrantId) {
         // Client-side filter: Firestore cannot query "array contains this id" and
         // also return every waitlist shape we need without an index on every case.
         val listener = FirebaseFirestore.getInstance()
@@ -107,7 +106,7 @@ fun LotteryScreen(
         FirebaseFirestore.getInstance()
             .collection(WAITLISTS_COLLECTION)
             .document(waitlist.waitlistId)
-            .update("joinedEntrantIds", FieldValue.arrayRemove(userId))
+            .update("joinedEntrantIds", FieldValue.arrayRemove(entrantId))
             .addOnSuccessListener { leavingId = null }
             .addOnFailureListener {
                 leavingId = null
@@ -127,6 +126,7 @@ fun LotteryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(16.dp),
     ) {
         Row(
@@ -190,7 +190,7 @@ fun LotteryScreen(
                             Button(
                                 onClick = { leaveWaitlist(waitlist) },
                                 enabled = leavingId == null &&
-                                    userId in waitlist.joinedEntrantIds &&
+                                    entrantId in waitlist.joinedEntrantIds &&
                                     !waitlist.isDrawn,
                                 shape = RectangleShape,
                                 modifier = Modifier.testTag("leaveWaitlist_${waitlist.waitlistId}"),

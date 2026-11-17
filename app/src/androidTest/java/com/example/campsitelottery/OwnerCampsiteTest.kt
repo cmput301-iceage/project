@@ -1,5 +1,6 @@
 package com.example.campsitelottery
 
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.navigation.compose.rememberNavController
@@ -25,7 +26,7 @@ class OwnerCampsiteTest {
         // Given the RegisterCampsiteScreen is loaded
         composeTestRule.setContent {
             val navController = rememberNavController()
-            RegisterCampsiteScreen(navController)
+            RegisterCampsiteScreen(navController,null , "placeholder_id")
         }
 
         // Then verify all form fields and action buttons exist
@@ -42,6 +43,8 @@ class OwnerCampsiteTest {
 
         // When the user types information into the fields
         composeTestRule.onNodeWithText("Campsite Name").performTextInput("Jasper Pines")
+        composeTestRule.onNodeWithText("Max Occupancy").performClick()
+        composeTestRule.onNodeWithText("Max Occupancy").performKeyInput { pressKey(Key.Backspace) }
         composeTestRule.onNodeWithText("Max Occupancy").performTextInput("6")
         composeTestRule.onNodeWithText("Price Per Night ($)").performTextInput("75.0")
         composeTestRule.onNodeWithText("Tags (comma separated)").performTextInput("Jasper, Hiking, Scenic")
@@ -61,7 +64,7 @@ class OwnerCampsiteTest {
         // Given the OwnerDashboardScreen is loaded
         composeTestRule.setContent {
             val navController = rememberNavController()
-            OwnerDashboardScreen(navController)
+            OwnerDashboardScreen(navController, "placeholderId")
         }
 
         // Then verify dashboard structural elements exist

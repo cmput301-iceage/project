@@ -57,7 +57,7 @@ data class Reservation(
     // Booking dates & details
     var checkInDate: Date? = null,
     var checkOutDate: Date? = null,
-    var reservedDates: List<Date> = emptyList(), // Supports multi date selections
+    var reservedDates: List<Date> = emptyList<Date>(), // Supports multi date selections
     var totalPrice: Double = 0.0,
 
     // Status and Policy Compliance
