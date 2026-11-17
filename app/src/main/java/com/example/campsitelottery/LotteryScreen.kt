@@ -78,9 +78,10 @@ fun LotteryScreen(
                 }
                 errorMessage = null
                 val mine = snapshot?.documents?.mapNotNull { doc ->
-                    runCatching { doc.toObject(Waitlist::class.java) }.getOrNull()
+                    runCatching { doc.bookingWaitlist() }.getOrNull()
                 }
-                    ?.filter { entrantId in it.joinedEntrantIds }
+                    ?.filter { userId in it.joinedEntrantIds || userId in it.selectedWinnerIds ||
+                        userId in it.declinedEntrantIds || userId in it.bookedEntrantIds }
                     .orEmpty()
                 waitlists = mine
                 isLoading = false
@@ -114,8 +115,9 @@ fun LotteryScreen(
     }
 
     fun statusLabel(waitlist: Waitlist): String = when {
-        entrantId in waitlist.declinedEntrantIds -> "Declined"
-        entrantId in waitlist.selectedWinnerIds -> "Won — book now"
+        userId in waitlist.bookedEntrantIds -> "Reserved — view confirmation"
+        userId in waitlist.declinedEntrantIds -> "Declined"
+        userId in waitlist.selectedWinnerIds -> "Won — book now"
         waitlist.isDrawn -> "Drawn — not selected"
         waitlist.isRegistrationOpen() -> "Waiting (registration open)"
         else -> "Waiting"
@@ -177,8 +179,9 @@ fun LotteryScreen(
                         val title = waitlist.campsiteIds.joinToString { id ->
                             campsiteNames[id] ?: id
                         }.ifBlank { "Lottery ${waitlist.waitlistId.take(6)}" }
-                        val won = entrantId in waitlist.selectedWinnerIds &&
-                            entrantId !in waitlist.declinedEntrantIds
+                        val won = userId in waitlist.selectedWinnerIds &&
+                            userId !in waitlist.declinedEntrantIds
+                        val booked = userId in waitlist.bookedEntrantIds
 
                         Text(title, fontSize = 22.sp)
                         Text("STATUS: ${statusLabel(waitlist)}", fontSize = 14.sp)
@@ -199,13 +202,13 @@ fun LotteryScreen(
 
                             Spacer(modifier = Modifier.width(16.dp))
 
-                            if (won) {
+                            if (won || booked) {
                                 Button(
-                                    onClick = { navController.navigate("booking") },
+                                    onClick = { navController.navigate(bookingRoute(waitlist.waitlistId)) },
                                     shape = RectangleShape,
                                     modifier = Modifier.testTag("toBookingButton_${waitlist.waitlistId}"),
                                 ) {
-                                    Text("Reserve")
+                                    Text(if (booked) "View reservation" else "Reserve")
                                 }
                             }
                         }
