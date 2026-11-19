@@ -247,6 +247,16 @@ fun ProfileScreen(
             ) {
                 Text("View Lotteries")
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { navController.navigate("messages") },
+                modifier = Modifier.fillMaxWidth().testTag("toMessagesButton"),
+                shape = RectangleShape
+            ) {
+                Text("View Messages")
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))

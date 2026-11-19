@@ -86,6 +86,9 @@ fun CampsiteInfoScreen(
     var isSubmittingRating by remember { mutableStateOf(false) }
     var ratingMessage by remember { mutableStateOf<String?>(null) }
     var ratingError by remember { mutableStateOf<String?>(null) }
+    var showMessageOwnerDialog by remember { mutableStateOf(false) }
+    var messageSentNotice by remember { mutableStateOf<String?>(null) }
+    val messageRepository = remember { FirestoreMessageRepository() }
 
     LaunchedEffect(campsiteId, deviceId) {
         ratingRepository.getMyRating(
@@ -261,6 +264,18 @@ fun CampsiteInfoScreen(
         )
     }
 
+    if (showMessageOwnerDialog && campsite != null) {
+        SendMessageDialog(
+            title = "Message owner",
+            fromUserId = deviceId,
+            toUserId = campsite!!.ownerId,
+            campsiteId = campsiteId,
+            messageRepository = messageRepository,
+            onSent = { messageSentNotice = "Message sent to the campsite owner." },
+            onDismiss = { showMessageOwnerDialog = false },
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -332,6 +347,10 @@ fun CampsiteInfoScreen(
             }
             ratingMessage?.let {
                 Text(it, fontSize = 14.sp, modifier = Modifier.testTag("ratingMessageText"))
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+            messageSentNotice?.let {
+                Text(it, fontSize = 14.sp, modifier = Modifier.testTag("messageSentText"))
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
@@ -415,6 +434,19 @@ fun CampsiteInfoScreen(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            if (!isOwnerOfSite && campsite != null && campsite!!.ownerId.isNotBlank()) {
+                Button(
+                    onClick = { showMessageOwnerDialog = true },
+                    shape = RectangleShape,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("messageOwnerButton"),
+                ) {
+                    Text("Message Owner")
+                }
                 Spacer(modifier = Modifier.height(8.dp))
             }
 

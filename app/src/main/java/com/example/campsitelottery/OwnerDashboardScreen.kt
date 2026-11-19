@@ -91,11 +91,15 @@ fun OwnerDashboardScreen(
                 Text("+ Create Lottery")
             }
         }
-        Row (
-
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Button(onClick = { navController.navigate("ownerViewLotteriesScreen") }, shape = RectangleShape) {
                 Text("View Lotteries")
+            }
+            Button(onClick = { navController.navigate("messages") }, shape = RectangleShape) {
+                Text("Messages")
             }
         }
 

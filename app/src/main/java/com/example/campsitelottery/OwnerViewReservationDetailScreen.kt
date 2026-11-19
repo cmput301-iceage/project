@@ -40,7 +40,8 @@ import kotlinx.coroutines.tasks.await
 @Composable
 fun OwnerViewReservationDetailScreen(
     navController: NavController,
-    reservationId: String?
+    reservationId: String?,
+    deviceId: String,
 ) {
     // colors for styling
     val backgroundColor = Color(0xFFFEFAE0)
@@ -54,6 +55,9 @@ fun OwnerViewReservationDetailScreen(
     var reservation by remember { mutableStateOf<Reservation?>(null) }
     var campsiteName by remember { mutableStateOf("") }
     var entrantName by remember { mutableStateOf("") }
+    var showMessageEntrantDialog by remember { mutableStateOf(false) }
+    var messageSentNotice by remember { mutableStateOf<String?>(null) }
+    val messageRepository = remember { FirestoreMessageRepository() }
 
 
     DisposableEffect(reservationId) {
@@ -221,6 +225,23 @@ fun OwnerViewReservationDetailScreen(
                         }
                     }
 
+                    messageSentNotice?.let {
+                        Text(it, color = buttonColor)
+                    }
+
+                    if (reservation!!.entrantId.isNotBlank() &&
+                        reservation!!.entrantId != deviceId
+                    ) {
+                        Button(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RectangleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                            onClick = { showMessageEntrantDialog = true },
+                        ) {
+                            Text("Message Entrant")
+                        }
+                    }
+
                     Row() {
                         if (reservation!!.status == ReservationStatus.CONFIRMED || reservation!!.status == ReservationStatus.PENDING) {
                             Button(
@@ -254,5 +275,17 @@ fun OwnerViewReservationDetailScreen(
         }
     }
 
+    if (showMessageEntrantDialog && reservation != null) {
+        SendMessageDialog(
+            title = "Message entrant",
+            fromUserId = deviceId,
+            toUserId = reservation!!.entrantId,
+            campsiteId = reservation!!.campsiteId,
+            reservationId = reservation!!.reservationId.ifBlank { reservationId.orEmpty() },
+            messageRepository = messageRepository,
+            onSent = { messageSentNotice = "Message sent to the entrant." },
+            onDismiss = { showMessageEntrantDialog = false },
+        )
+    }
 }
 
