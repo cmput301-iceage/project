@@ -58,6 +58,8 @@ fun LotteryScreen(
     navController: NavController,
     entrantId: String? = null,
 ) {
+    val context = LocalContext.current
+    val userId = entrantId ?: remember(context) { DeviceIdentity.getDeviceId(context) }
 
     var waitlists by remember { mutableStateOf<List<Waitlist>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
