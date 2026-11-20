@@ -35,7 +35,6 @@ fun CampsiteLotteryApp(
     }
 ) {
 
-
     val navController = rememberNavController()
     var userState by remember { mutableStateOf<UserState>(UserState.Loading) }
 
@@ -54,7 +53,8 @@ fun CampsiteLotteryApp(
             HomeScreen(
                 navController,
                 userState = userState,
-                userRepository = userRepository
+                userRepository = userRepository,
+
             )
         }
         composable("profile") {
