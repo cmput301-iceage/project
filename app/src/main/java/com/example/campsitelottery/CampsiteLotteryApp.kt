@@ -134,7 +134,10 @@ fun CampsiteLotteryApp(
             )}
         composable("adminCampsites") {AdminCampsitesScreen(navController)}
         composable("adminImages") {AdminImagesScreen(navController)}
-        composable("adminMessages") {AdminMessagesScreen(navController)}
+        composable("adminMessages") { AdminMessagesScreen(navController) }
+        composable("messages") {
+            MessagesInboxScreen(navController, userId = deviceId)
+        }
         composable("ownerViewReservationsScreen") {
             OwnerViewReservationsScreen(
                 navController,
@@ -147,7 +150,11 @@ fun CampsiteLotteryApp(
             )}
         composable("ownerViewReservationDetails/{reservationId}") { backStackEntry ->
             val reservationId = backStackEntry.arguments?.getString("reservationId")
-            OwnerViewReservationDetailScreen(navController, reservationId = reservationId)
+            OwnerViewReservationDetailScreen(
+                navController,
+                reservationId = reservationId,
+                deviceId = deviceId,
+            )
         }
         composable("ownerViewLotteryDetails/{waitlistId}") { backStackEntry ->
             val waitlistId = backStackEntry.arguments?.getString("waitlistId")
