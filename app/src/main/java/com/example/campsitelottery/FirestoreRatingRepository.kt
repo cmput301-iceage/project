@@ -6,6 +6,8 @@
  */
 package com.example.campsitelottery
 
+import com.google.android.gms.tasks.Tasks
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -73,6 +75,94 @@ class FirestoreRatingRepository(
                     "updatedAt" to FieldValue.serverTimestamp(),
                 ),
             )
+            tx.update(
+                siteRef,
+                mapOf(
+                    "ratingSum" to updated.sum,
+                    "ratingCount" to updated.count,
+                    "rating" to updated.average,
+                ),
+            )
+            updated
+        }
+            .addOnSuccessListener { onSuccess(it) }
+            .addOnFailureListener(onFailure)
+    }
+
+    override fun getRatings(
+        campsiteId: String,
+        onSuccess: (List<CampsiteRating>) -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        if (campsiteId.isBlank()) return onSuccess(emptyList())
+        campsite(campsiteId).collection("ratings").get()
+            .addOnSuccessListener { snapshot ->
+                // Parsed defensively: a malformed rating is still listed (as invalid) so
+                // an admin can remove it, instead of breaking the whole list.
+                val ratings = snapshot.documents.map { doc ->
+                    CampsiteRating(
+                        userId = doc.id,
+                        stars = RatingPolicy.parseStoredStars(doc.get("stars")),
+                        updatedAt = runCatching { doc.getDate("updatedAt") }.getOrNull(),
+                    )
+                }
+                loadNames(ratings.map { it.userId }) { names ->
+                    onSuccess(
+                        RatingPolicy.sortNewestFirst(
+                            ratings.map { it.copy(raterName = names[it.userId].orEmpty()) }
+                        )
+                    )
+                }
+            }
+            .addOnFailureListener(onFailure)
+    }
+
+    /**
+     * Looks up the profile names of [userIds], in batches of 30 (Firestore's
+     * limit for `in` queries). Names that can't be loaded are left out, so a
+     * failed lookup still shows the ratings.
+     */
+    private fun loadNames(userIds: List<String>, onResult: (Map<String, String>) -> Unit) {
+        if (userIds.isEmpty()) return onResult(emptyMap())
+        val queries = userIds.distinct().chunked(30).map { batch ->
+            db.collection("users").whereIn(FieldPath.documentId(), batch).get()
+        }
+        Tasks.whenAllComplete(queries).addOnCompleteListener {
+            val names = queries
+                .filter { it.isSuccessful }
+                .flatMap { it.result.documents }
+                .associate { it.id to ((it.get("name") as? String).orEmpty()) }
+            onResult(names)
+        }
+    }
+
+    override fun removeRating(
+        campsiteId: String,
+        userId: String,
+        expectedStars: Int?,
+        onSuccess: (RatingPolicy.Totals) -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        if (campsiteId.isBlank() || userId.isBlank()) {
+            return onFailure(IllegalArgumentException("Missing campsite or user."))
+        }
+        val siteRef = campsite(campsiteId)
+        val ratingRef = ratingDoc(campsiteId, userId)
+
+        db.runTransaction { tx ->
+            val site = tx.get(siteRef)
+            check(site.exists()) { "This campsite no longer exists." }
+            val rating = tx.get(ratingRef)
+            check(rating.exists()) { "This rating was already removed." }
+            val stars = RatingPolicy.parseStoredStars(rating.get("stars"))
+            check(expectedStars == null || expectedStars == stars) { RatingPolicy.CHANGED_MESSAGE }
+            val current = RatingPolicy.Totals(
+                sum = site.getLong("ratingSum") ?: 0L,
+                count = (site.getLong("ratingCount") ?: 0L).toInt(),
+            )
+            val updated = RatingPolicy.remove(current, stars)
+
+            tx.delete(ratingRef)
             tx.update(
                 siteRef,
                 mapOf(
