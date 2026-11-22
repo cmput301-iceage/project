@@ -181,7 +181,7 @@ fun CampsiteReviewsScreen(
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
-                campsiteLoaded && campsite == null && !isLoading -> Column(
+                campsiteLoaded && campsite == null -> Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -193,7 +193,7 @@ fun CampsiteReviewsScreen(
                         modifier = Modifier.testTag("retryCampsiteButton"),
                     ) { Text("Retry") }
                 }
-                isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                isLoading || !campsiteLoaded -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 loadError != null -> Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,
