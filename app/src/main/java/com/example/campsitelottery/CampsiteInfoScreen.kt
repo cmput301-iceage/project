@@ -397,6 +397,20 @@ fun CampsiteInfoScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
+            if (campsite != null) {
+                Button(
+                    onClick = { navController.navigate("campsiteReviews/$campsiteId") },
+                    shape = RectangleShape,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("toReviewsButton"),
+                ) {
+                    Text("Reviews")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             if (canRate) {
                 Button(
                     onClick = { showRateDialog = true },
