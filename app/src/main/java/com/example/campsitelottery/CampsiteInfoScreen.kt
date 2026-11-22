@@ -83,6 +83,7 @@ fun CampsiteInfoScreen(
 
     var myRating by remember { mutableStateOf<Int?>(null) }
     var showRateDialog by remember { mutableStateOf(false) }
+    var showQrDialog by remember { mutableStateOf(false) }
     var isSubmittingRating by remember { mutableStateOf(false) }
     var ratingMessage by remember { mutableStateOf<String?>(null) }
     var ratingError by remember { mutableStateOf<String?>(null) }
@@ -253,6 +254,14 @@ fun CampsiteInfoScreen(
     val canDelete = isOwnerOfSite || isAdmin
     val canRate = campsite != null && RatingPolicy.canRate(campsite!!.ownerId, deviceId)
 
+    if (showQrDialog && campsite != null) {
+        CampsiteQrDialog(
+            campsiteId = campsiteId,
+            campsiteName = campsite!!.name,
+            onDismiss = { showQrDialog = false },
+        )
+    }
+
     if (showRateDialog) {
         RateCampsiteDialog(
             initialStars = myRating,
@@ -394,6 +403,14 @@ fun CampsiteInfoScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Edit Campsite Details")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { showQrDialog = true },
+                    shape = RectangleShape,
+                    modifier = Modifier.fillMaxWidth().testTag("showQrCodeButton"),
+                ) {
+                    Text("Show QR Code")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }

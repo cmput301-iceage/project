@@ -62,6 +62,10 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-database")
 
+    // QR codes: ZXing draws campsite codes, Google's code scanner reads them
+    implementation("com.google.zxing:core:3.5.4")
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+
 }
 
 // KDoc generation: run `./gradlew :app:dokkaGeneratePublicationHtml`
