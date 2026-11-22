@@ -10,8 +10,12 @@ package com.example.campsitelottery
  * [RatingRepository] that keeps ratings in memory. Callbacks run synchronously.
  *
  * @param campsites campsites that can be rated, keyed by their IDs.
+ * @param raterNames profile names of raters, keyed by user ID.
  */
-class InMemoryRatingRepository(campsites: List<Campsite> = emptyList()) : RatingRepository {
+class InMemoryRatingRepository(
+    campsites: List<Campsite> = emptyList(),
+    private val raterNames: Map<String, String> = emptyMap(),
+) : RatingRepository {
 
     private val owners = campsites.associate { it.campsiteId to it.ownerId }.toMutableMap()
     private val totals = campsites.associate { it.campsiteId to RatingPolicy.totalsOf(it) }.toMutableMap()
@@ -52,6 +56,35 @@ class InMemoryRatingRepository(campsites: List<Campsite> = emptyList()) : Rating
             return onFailure(e)
         }
         ratings[campsiteId to userId] = stars
+        totals[campsiteId] = updated
+        onSuccess(updated)
+    }
+
+    override fun getRatings(
+        campsiteId: String,
+        onSuccess: (List<CampsiteRating>) -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        failWith?.let { return onFailure(it) }
+        onSuccess(
+            ratings.filterKeys { it.first == campsiteId }.map { (key, stars) ->
+                CampsiteRating(userId = key.second, stars = stars, raterName = raterNames[key.second].orEmpty())
+            }
+        )
+    }
+
+    override fun removeRating(
+        campsiteId: String,
+        userId: String,
+        onSuccess: (RatingPolicy.Totals) -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        failWith?.let { return onFailure(it) }
+        val current = totals[campsiteId]
+            ?: return onFailure(IllegalStateException("This campsite no longer exists."))
+        val stars = ratings.remove(campsiteId to userId)
+            ?: return onFailure(IllegalStateException("This rating was already removed."))
+        val updated = RatingPolicy.remove(current, stars)
         totals[campsiteId] = updated
         onSuccess(updated)
     }
