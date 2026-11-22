@@ -30,7 +30,11 @@ class CampsiteReviewsScreenTest {
 
     private val site = Campsite(campsiteId = "site1", ownerId = "owner", name = "Lakeside Pines")
 
-    private fun showScreen(deviceId: String, repo: InMemoryReviewRepository = InMemoryReviewRepository(listOf(site))) {
+    private fun showScreen(
+        deviceId: String,
+        repo: InMemoryReviewRepository = InMemoryReviewRepository(listOf(site)),
+        campsite: Campsite? = site,
+    ) {
         composeRule.setContent {
             CampsiteReviewsScreen(
                 rememberNavController(),
@@ -38,7 +42,7 @@ class CampsiteReviewsScreenTest {
                 deviceId = deviceId,
                 authorName = "Jane",
                 reviewRepository = repo,
-                loadCampsite = { _, onResult -> onResult(site) },
+                loadCampsite = { _, onResult -> onResult(campsite) },
             )
         }
     }
@@ -129,5 +133,42 @@ class CampsiteReviewsScreenTest {
         repo.failWith = null
         composeRule.onNodeWithTag("retryReviewsButton").performClick()
         composeRule.onNodeWithTag("noReviewsText").assertExists()
+    }
+
+    @Test
+    fun failedPostKeepsTheDraft() {
+        val repo = InMemoryReviewRepository(listOf(site))
+        showScreen(deviceId = "guest", repo = repo)
+        repo.failWith = IllegalStateException("offline")
+        composeRule.onNodeWithTag("writeReviewButton").performClick()
+        composeRule.onNodeWithTag("reviewTextField").performTextInput("Draft text")
+        composeRule.onNodeWithTag("submitReviewButton").performClick()
+
+        composeRule.onNodeWithTag("reviewErrorText").assertTextContains("offline", substring = true)
+        composeRule.onNodeWithTag("writeReviewButton").assertTextEquals("Write a Review").performClick()
+        composeRule.onNodeWithTag("reviewTextField").assertTextContains("Draft text")
+        composeRule.onNodeWithText("Write a review").assertExists()
+    }
+
+    @Test
+    fun missingCampsiteShowsRetryInsteadOfReviews() {
+        val repo = InMemoryReviewRepository(
+            listOf(site),
+            mapOf("site1" to listOf(Review("guest", "Sam", "Stale review", Date()))),
+        )
+        showScreen(deviceId = "guest", repo = repo, campsite = null)
+        composeRule.onNodeWithTag("campsiteMissingText").assertExists()
+        composeRule.onNodeWithTag("retryCampsiteButton").assertExists()
+        composeRule.onNodeWithText("Stale review").assertDoesNotExist()
+        composeRule.onNodeWithTag("writeReviewButton").assertDoesNotExist()
+    }
+
+    @Test
+    fun typingWhileEditingAddsToTheEnd() {
+        var submitted: String? = null
+        composeRule.setContent { PostReviewDialog(initialText = "Nice.", onSubmit = { submitted = it }, onDismiss = {}) }
+        composeRule.onNodeWithTag("reviewTextField").performTextInput(" Would return.")
+        composeRule.onNodeWithTag("submitReviewButton").performClick()
+        assertEquals("Nice. Would return.", submitted)
     }
 }

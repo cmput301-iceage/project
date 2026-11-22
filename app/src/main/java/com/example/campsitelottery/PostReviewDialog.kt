@@ -21,6 +21,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 
 /**
@@ -29,28 +31,36 @@ import androidx.compose.ui.unit.dp
  * Post stays disabled while the review is blank or longer than
  * [ReviewPolicy.MAX_LENGTH] characters.
  *
- * @param initialText the user's existing review, used to prefill the text box.
+ * @param initialText text to prefill the box with, such as the user's existing review.
+ * @param isEditing true if the user already has a review, which changes the title.
  * @param onSubmit receives the review text.
  * @param onDismiss called when the dialog is closed without posting.
  */
 @Composable
 fun PostReviewDialog(
     initialText: String?,
+    isEditing: Boolean = initialText != null,
     onSubmit: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var text by rememberSaveable { mutableStateOf(initialText.orEmpty()) }
+    // Start with the cursor at the end, so editing adds to the review instead of
+    // typing in front of it.
+    var field by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        val start = initialText.orEmpty()
+        mutableStateOf(TextFieldValue(start, TextRange(start.length)))
+    }
+    val text = field.text
     val length = ReviewPolicy.normalize(text).length
     val tooLong = length > ReviewPolicy.MAX_LENGTH
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initialText == null) "Write a review" else "Edit your review") },
+        title = { Text(if (isEditing) "Edit your review" else "Write a review") },
         text = {
             Column {
                 OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
+                    value = field,
+                    onValueChange = { field = it },
                     placeholder = { Text("What was your stay like?") },
                     isError = tooLong,
                     modifier = Modifier

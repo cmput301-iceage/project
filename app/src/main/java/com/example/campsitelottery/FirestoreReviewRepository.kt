@@ -8,6 +8,7 @@ package com.example.campsitelottery
 
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import java.util.Date
 
 /**
  * Stores each review at `campsites/{campsiteId}/reviews/{userId}`, so a user has at
@@ -73,7 +74,9 @@ class FirestoreReviewRepository(
                 ),
             )
         }
-            .addOnSuccessListener { onSuccess(review) }
+            // The server sets the real timestamp; the local clock is close enough to
+            // show and sort the review until the list is next loaded.
+            .addOnSuccessListener { onSuccess(review.copy(updatedAt = Date())) }
             .addOnFailureListener(onFailure)
     }
 }

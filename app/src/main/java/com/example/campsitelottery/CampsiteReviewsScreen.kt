@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,23 +80,27 @@ fun CampsiteReviewsScreen(
     loadCampsite: (String, (Campsite?) -> Unit) -> Unit = ::loadCampsiteFromFirestore,
 ) {
     var campsite by remember { mutableStateOf<Campsite?>(null) }
+    var campsiteLoaded by remember { mutableStateOf(false) }
     var reviews by remember { mutableStateOf<List<Review>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableStateOf(0) }
 
     var showDialog by remember { mutableStateOf(false) }
+    // Text the user posted that hasn't saved yet, kept so a failed post isn't lost.
+    var unsavedDraft by rememberSaveable { mutableStateOf<String?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var submitError by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(campsiteId) {
-        loadCampsite(campsiteId) { campsite = it }
-    }
-
     LaunchedEffect(campsiteId, reloadKey) {
         isLoading = true
         loadError = null
+        campsiteLoaded = false
+        loadCampsite(campsiteId) {
+            campsite = it
+            campsiteLoaded = true
+        }
         reviewRepository.getReviews(
             campsiteId,
             onSuccess = {
@@ -117,6 +123,7 @@ fun CampsiteReviewsScreen(
         isSubmitting = true
         submitError = null
         message = null
+        unsavedDraft = text
         val editing = myReview != null
         reviewRepository.submitReview(
             campsiteId,
@@ -125,19 +132,21 @@ fun CampsiteReviewsScreen(
             text,
             onSuccess = { saved ->
                 isSubmitting = false
+                unsavedDraft = null
                 reviews = ReviewPolicy.sortNewestFirst(reviews.filterNot { it.userId == deviceId } + saved)
                 message = if (editing) "Your review was updated." else "Thanks! Your review was posted."
             },
             onFailure = {
                 isSubmitting = false
-                submitError = it.message ?: "Could not post your review."
+                submitError = (it.message ?: "Could not post your review.") + " Your text was kept; tap the button to try again."
             },
         )
     }
 
     if (showDialog) {
         PostReviewDialog(
-            initialText = myReview?.text,
+            initialText = unsavedDraft ?: myReview?.text,
+            isEditing = myReview != null,
             onSubmit = { text ->
                 showDialog = false
                 submit(text)
@@ -150,6 +159,7 @@ fun CampsiteReviewsScreen(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(16.dp),
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Absolute.Left) {
@@ -171,6 +181,18 @@ fun CampsiteReviewsScreen(
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
+                campsiteLoaded && campsite == null && !isLoading -> Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text("Could not load this campsite.", fontSize = 18.sp, modifier = Modifier.testTag("campsiteMissingText"))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { reloadKey++ },
+                        shape = RectangleShape,
+                        modifier = Modifier.testTag("retryCampsiteButton"),
+                    ) { Text("Retry") }
+                }
                 isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 loadError != null -> Column(
                     modifier = Modifier.align(Alignment.Center),
