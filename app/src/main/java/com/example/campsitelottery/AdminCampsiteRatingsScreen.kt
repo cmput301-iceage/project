@@ -119,6 +119,7 @@ fun AdminCampsiteRatingsScreen(
         ratingRepository.removeRating(
             campsiteId,
             rating.userId,
+            expectedStars = rating.stars,
             onSuccess = { totals ->
                 removingUserId = null
                 ratings = ratings.filterNot { it.userId == rating.userId }
@@ -127,7 +128,7 @@ fun AdminCampsiteRatingsScreen(
                     ratingSum = totals.sum,
                     ratingCount = totals.count,
                 )
-                message = "Removed ${displayRaterName(rating)}'s ${rating.stars}-star rating."
+                message = "Removed ${displayRaterName(rating)}'s rating (${RatingPolicy.starText(rating.stars)})."
             },
             onFailure = {
                 removingUserId = null
@@ -144,7 +145,7 @@ fun AdminCampsiteRatingsScreen(
             title = { Text("Remove this rating?") },
             text = {
                 Text(
-                    "${displayRaterName(rating)}'s ${rating.stars}-star rating will be deleted " +
+                    "${displayRaterName(rating)}'s rating (${RatingPolicy.starText(rating.stars)}) will be deleted " +
                         "and the campsite's average recalculated. This can't be undone."
                 )
             },
@@ -238,7 +239,7 @@ fun AdminCampsiteRatingsScreen(
                             rating = rating,
                             buttonColor = buttonColor,
                             isRemoving = removingUserId == rating.userId,
-                            removeEnabled = removingUserId == null,
+                            removeEnabled = removingUserId == null && campsite != null,
                             onRemove = { pendingRemoval = rating },
                         )
                     }
@@ -272,7 +273,7 @@ private fun RatingRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(displayRaterName(rating), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = buttonColor)
             Text(
-                "★".repeat(rating.stars) + "☆".repeat((RatingPolicy.MAX_STARS - rating.stars).coerceAtLeast(0)),
+                RatingPolicy.starText(rating.stars),
                 fontSize = 20.sp,
                 color = buttonColor,
             )

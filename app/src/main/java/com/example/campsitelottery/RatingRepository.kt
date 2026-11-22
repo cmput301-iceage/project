@@ -58,13 +58,16 @@ interface RatingRepository {
      * Removes [userId]'s rating of [campsiteId] and updates the campsite's totals,
      * for admins taking down ratings that violate the app policy.
      *
-     * Fails if the campsite or the rating doesn't exist.
+     * Fails if the campsite or the rating doesn't exist, or if the rating no
+     * longer has [expectedStars] (the user changed it after the admin looked).
      *
+     * @param expectedStars the stars the admin saw, or null to remove whatever is stored.
      * @param onSuccess receives the campsite's updated totals.
      */
     fun removeRating(
         campsiteId: String,
         userId: String,
+        expectedStars: Int?,
         onSuccess: (RatingPolicy.Totals) -> Unit,
         onFailure: (Exception) -> Unit,
     )

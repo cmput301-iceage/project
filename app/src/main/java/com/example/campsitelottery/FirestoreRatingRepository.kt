@@ -97,9 +97,14 @@ class FirestoreRatingRepository(
         if (campsiteId.isBlank()) return onSuccess(emptyList())
         campsite(campsiteId).collection("ratings").get()
             .addOnSuccessListener { snapshot ->
-                val ratings = snapshot.documents.mapNotNull { doc ->
-                    val stars = doc.getLong("stars")?.toInt() ?: return@mapNotNull null
-                    CampsiteRating(userId = doc.id, stars = stars, updatedAt = doc.getDate("updatedAt"))
+                // Parsed defensively: a malformed rating is still listed (as invalid) so
+                // an admin can remove it, instead of breaking the whole list.
+                val ratings = snapshot.documents.map { doc ->
+                    CampsiteRating(
+                        userId = doc.id,
+                        stars = runCatching { doc.getLong("stars") }.getOrNull()?.toInt() ?: 0,
+                        updatedAt = runCatching { doc.getDate("updatedAt") }.getOrNull(),
+                    )
                 }
                 loadNames(ratings.map { it.userId }) { names ->
                     onSuccess(
@@ -134,6 +139,7 @@ class FirestoreRatingRepository(
     override fun removeRating(
         campsiteId: String,
         userId: String,
+        expectedStars: Int?,
         onSuccess: (RatingPolicy.Totals) -> Unit,
         onFailure: (Exception) -> Unit,
     ) {
@@ -146,8 +152,10 @@ class FirestoreRatingRepository(
         db.runTransaction { tx ->
             val site = tx.get(siteRef)
             check(site.exists()) { "This campsite no longer exists." }
-            val stars = tx.get(ratingRef).getLong("stars")?.toInt()
-                ?: throw IllegalStateException("This rating was already removed.")
+            val rating = tx.get(ratingRef)
+            check(rating.exists()) { "This rating was already removed." }
+            val stars = runCatching { rating.getLong("stars") }.getOrNull()?.toInt() ?: 0
+            check(expectedStars == null || expectedStars == stars) { RatingPolicy.CHANGED_MESSAGE }
             val current = RatingPolicy.Totals(
                 sum = site.getLong("ratingSum") ?: 0L,
                 count = (site.getLong("ratingCount") ?: 0L).toInt(),

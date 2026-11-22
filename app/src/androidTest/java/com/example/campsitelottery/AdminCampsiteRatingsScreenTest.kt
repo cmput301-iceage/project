@@ -1,5 +1,6 @@
 package com.example.campsitelottery
 
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -62,7 +63,7 @@ class AdminCampsiteRatingsScreenTest {
         composeRule.onNodeWithTag("adminRating_spammer").assertDoesNotExist()
         composeRule.onNodeWithTag("adminRating_fan").assertExists()
         composeRule.onNodeWithTag("adminRatingsSummary").assertTextEquals("5.0 ★ (1 rating)")
-        composeRule.onNodeWithTag("adminRatingsMessage").assertTextEquals("Removed Spam Bot's 1-star rating.")
+        composeRule.onNodeWithTag("adminRatingsMessage").assertTextEquals("Removed Spam Bot's rating (★☆☆☆☆).")
         assertEquals(RatingPolicy.Totals(sum = 5, count = 1), repo.totalsFor("site1"))
     }
 
@@ -106,5 +107,31 @@ class AdminCampsiteRatingsScreenTest {
         repo.failWith = null
         composeRule.onNodeWithTag("retryRatingsButton").performClick()
         composeRule.onNodeWithTag("adminRating_fan").assertExists()
+    }
+
+    @Test
+    fun removeIsDisabledUntilTheCampsiteLoads() {
+        val repo = repoWith("spammer" to 1)
+        composeRule.setContent {
+            AdminCampsiteRatingsScreen(
+                rememberNavController(),
+                campsiteId = "site1",
+                ratingRepository = repo,
+                loadCampsite = { _, _ -> }, // never finishes
+            )
+        }
+        composeRule.onNodeWithTag("removeRating_spammer").assertIsNotEnabled()
+    }
+
+    @Test
+    fun changedRatingIsNotRemoved() {
+        val repo = repoWith("spammer" to 1)
+        showScreen(repo)
+        repo.submitRating("site1", "spammer", 5, {}, { throw it }) // changed after the list loaded
+        composeRule.onNodeWithTag("removeRating_spammer").performClick()
+        composeRule.onNodeWithTag("confirmRemoveRatingButton").performClick()
+
+        composeRule.onNodeWithTag("adminRatingsError").assertTextEquals(RatingPolicy.CHANGED_MESSAGE)
+        assertEquals(RatingPolicy.Totals(sum = 5, count = 1), repo.totalsFor("site1"))
     }
 }

@@ -70,6 +70,14 @@ object RatingPolicy {
         if (totals.count <= 1) Totals()
         else Totals((totals.sum - removedStars).coerceAtLeast(0), totals.count - 1)
 
+    /** Error shown when a rating changed between an admin seeing it and removing it. */
+    const val CHANGED_MESSAGE = "This rating was changed. Check it again before removing it."
+
+    /** Stars as text, e.g. "★★☆☆☆", or "Invalid rating (7)" if [stars] is out of range. */
+    fun starText(stars: Int): String =
+        if (isValid(stars)) "★".repeat(stars) + "☆".repeat(MAX_STARS - stars)
+        else "Invalid rating ($stars)"
+
     /** Ratings sorted newest first; ones with no date go last. */
     fun sortNewestFirst(ratings: List<CampsiteRating>): List<CampsiteRating> =
         ratings.sortedByDescending { it.updatedAt?.time ?: Long.MIN_VALUE }

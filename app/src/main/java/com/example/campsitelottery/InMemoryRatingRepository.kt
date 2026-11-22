@@ -76,14 +76,19 @@ class InMemoryRatingRepository(
     override fun removeRating(
         campsiteId: String,
         userId: String,
+        expectedStars: Int?,
         onSuccess: (RatingPolicy.Totals) -> Unit,
         onFailure: (Exception) -> Unit,
     ) {
         failWith?.let { return onFailure(it) }
         val current = totals[campsiteId]
             ?: return onFailure(IllegalStateException("This campsite no longer exists."))
-        val stars = ratings.remove(campsiteId to userId)
+        val stars = ratings[campsiteId to userId]
             ?: return onFailure(IllegalStateException("This rating was already removed."))
+        if (expectedStars != null && expectedStars != stars) {
+            return onFailure(IllegalStateException(RatingPolicy.CHANGED_MESSAGE))
+        }
+        ratings.remove(campsiteId to userId)
         val updated = RatingPolicy.remove(current, stars)
         totals[campsiteId] = updated
         onSuccess(updated)

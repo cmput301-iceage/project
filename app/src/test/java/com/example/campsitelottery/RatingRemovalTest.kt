@@ -27,9 +27,9 @@ class RatingRemovalTest {
     private fun rate(userId: String, stars: Int) =
         repo.submitRating("site1", userId, stars, onSuccess = {}, onFailure = { throw it })
 
-    private fun remove(userId: String, campsiteId: String = "site1"): Exception? {
+    private fun remove(userId: String, campsiteId: String = "site1", expectedStars: Int? = null): Exception? {
         var error: Exception? = null
-        repo.removeRating(campsiteId, userId, onSuccess = {}, onFailure = { error = it })
+        repo.removeRating(campsiteId, userId, expectedStars, onSuccess = {}, onFailure = { error = it })
         return error
     }
 
@@ -121,5 +121,22 @@ class RatingRemovalTest {
         assertEquals("offline", remove("guest1")?.message)
         repo.failWith = null
         assertTrue(ratings().isNotEmpty())
+    }
+
+    @Test
+    fun removalFailsIfTheRatingChangedSinceTheAdminSawIt() {
+        rate("guest1", 1)
+        rate("guest1", 5) // the user changes their rating while the admin is deciding
+        assertEquals(RatingPolicy.CHANGED_MESSAGE, remove("guest1", expectedStars = 1)?.message)
+        assertEquals(RatingPolicy.Totals(sum = 5, count = 1), repo.totalsFor("site1"))
+        assertNull(remove("guest1", expectedStars = 5))
+    }
+
+    @Test
+    fun starTextShowsStarsOrFlagsInvalidValues() {
+        assertEquals("★★★☆☆", RatingPolicy.starText(3))
+        assertEquals("Invalid rating (0)", RatingPolicy.starText(0))
+        assertEquals("Invalid rating (-2)", RatingPolicy.starText(-2))
+        assertEquals("Invalid rating (9)", RatingPolicy.starText(9))
     }
 }
