@@ -134,4 +134,20 @@ class AdminCampsiteRatingsScreenTest {
         composeRule.onNodeWithTag("adminRatingsError").assertTextEquals(RatingPolicy.CHANGED_MESSAGE)
         assertEquals(RatingPolicy.Totals(sum = 5, count = 1), repo.totalsFor("site1"))
     }
+
+    @Test
+    fun campsiteLoadFailureOffersRetry() {
+        val repo = repoWith("spammer" to 1)
+        composeRule.setContent {
+            AdminCampsiteRatingsScreen(
+                rememberNavController(),
+                campsiteId = "site1",
+                ratingRepository = repo,
+                loadCampsite = { _, onResult -> onResult(null) },
+            )
+        }
+        composeRule.onNodeWithTag("adminRatingsCampsiteError").assertExists()
+        composeRule.onNodeWithTag("retryCampsiteButton").assertExists()
+        composeRule.onNodeWithTag("removeRating_spammer").assertDoesNotExist()
+    }
 }

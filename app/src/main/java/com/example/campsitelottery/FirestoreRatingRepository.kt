@@ -102,7 +102,7 @@ class FirestoreRatingRepository(
                 val ratings = snapshot.documents.map { doc ->
                     CampsiteRating(
                         userId = doc.id,
-                        stars = runCatching { doc.getLong("stars") }.getOrNull()?.toInt() ?: 0,
+                        stars = RatingPolicy.parseStoredStars(doc.get("stars")),
                         updatedAt = runCatching { doc.getDate("updatedAt") }.getOrNull(),
                     )
                 }
@@ -131,7 +131,7 @@ class FirestoreRatingRepository(
             val names = queries
                 .filter { it.isSuccessful }
                 .flatMap { it.result.documents }
-                .associate { it.id to it.getString("name").orEmpty() }
+                .associate { it.id to ((it.get("name") as? String).orEmpty()) }
             onResult(names)
         }
     }
@@ -154,7 +154,7 @@ class FirestoreRatingRepository(
             check(site.exists()) { "This campsite no longer exists." }
             val rating = tx.get(ratingRef)
             check(rating.exists()) { "This rating was already removed." }
-            val stars = runCatching { rating.getLong("stars") }.getOrNull()?.toInt() ?: 0
+            val stars = RatingPolicy.parseStoredStars(rating.get("stars"))
             check(expectedStars == null || expectedStars == stars) { RatingPolicy.CHANGED_MESSAGE }
             val current = RatingPolicy.Totals(
                 sum = site.getLong("ratingSum") ?: 0L,

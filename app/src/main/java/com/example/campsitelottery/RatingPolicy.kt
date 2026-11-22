@@ -70,6 +70,16 @@ object RatingPolicy {
         if (totals.count <= 1) Totals()
         else Totals((totals.sum - removedStars).coerceAtLeast(0), totals.count - 1)
 
+    /**
+     * Reads a stored star value. Anything that isn't a whole number from
+     * [MIN_STARS] to [MAX_STARS] comes back as 0, which is shown as invalid and
+     * leaves the totals' sum unchanged when removed.
+     */
+    fun parseStoredStars(raw: Any?): Int {
+        val n = (raw as? Long) ?: (raw as? Int)?.toLong() ?: return 0
+        return if (n in MIN_STARS..MAX_STARS) n.toInt() else 0
+    }
+
     /** Error shown when a rating changed between an admin seeing it and removing it. */
     const val CHANGED_MESSAGE = "This rating was changed. Check it again before removing it."
 

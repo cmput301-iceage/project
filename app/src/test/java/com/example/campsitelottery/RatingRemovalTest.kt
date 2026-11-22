@@ -139,4 +139,21 @@ class RatingRemovalTest {
         assertEquals("Invalid rating (-2)", RatingPolicy.starText(-2))
         assertEquals("Invalid rating (9)", RatingPolicy.starText(9))
     }
+
+    @Test
+    fun storedStarsAreValidatedBeforeUse() {
+        assertEquals(4, RatingPolicy.parseStoredStars(4L))
+        assertEquals(0, RatingPolicy.parseStoredStars(4_294_967_297L)) // would wrap to 1 as an Int
+        assertEquals(0, RatingPolicy.parseStoredStars(-1L))
+        assertEquals(0, RatingPolicy.parseStoredStars("5"))
+        assertEquals(0, RatingPolicy.parseStoredStars(null))
+    }
+
+    @Test
+    fun removingAnInvalidRatingLeavesTheSumAlone() {
+        assertEquals(
+            RatingPolicy.Totals(sum = 9, count = 2),
+            RatingPolicy.remove(RatingPolicy.Totals(sum = 9, count = 3), removedStars = 0),
+        )
+    }
 }

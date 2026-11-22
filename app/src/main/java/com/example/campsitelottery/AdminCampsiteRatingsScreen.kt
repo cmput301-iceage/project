@@ -83,6 +83,7 @@ fun AdminCampsiteRatingsScreen(
     val buttonColor = Color(0xFF283618)
 
     var campsite by remember { mutableStateOf<Campsite?>(null) }
+    var campsiteLoaded by remember { mutableStateOf(false) }
     var ratings by remember { mutableStateOf<List<CampsiteRating>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
@@ -96,7 +97,11 @@ fun AdminCampsiteRatingsScreen(
     LaunchedEffect(campsiteId, reloadKey) {
         isLoading = true
         loadError = null
-        loadCampsite(campsiteId) { campsite = it }
+        campsiteLoaded = false
+        loadCampsite(campsiteId) {
+            campsite = it
+            campsiteLoaded = true
+        }
         ratingRepository.getRatings(
             campsiteId,
             onSuccess = {
@@ -208,6 +213,23 @@ fun AdminCampsiteRatingsScreen(
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
+                // Removing needs the campsite's totals, so a failed campsite load blocks the list.
+                campsiteLoaded && campsite == null -> Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        "Could not load this campsite.",
+                        color = Color.Red,
+                        modifier = Modifier.testTag("adminRatingsCampsiteError"),
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { reloadKey++ },
+                        colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = Color.White),
+                        modifier = Modifier.testTag("retryCampsiteButton"),
+                    ) { Text("Retry") }
+                }
                 isLoading -> CircularProgressIndicator(
                     color = buttonColor,
                     modifier = Modifier.align(Alignment.Center),
