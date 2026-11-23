@@ -28,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
@@ -47,8 +48,13 @@ fun OwnerViewLotteryDetails(
     val backgroundColor = Color(0xFFFEFAE0)
     val buttonColor = Color(0xFF283618)
 
+    val context = LocalContext.current
+    val deviceId = remember(context) { DeviceIdentity.getDeviceId(context) }
+
     // vars for loading vals and coroutine scope var
     var isLoading by remember { mutableStateOf(true) }
+    var isAdmin by remember { mutableStateOf(false) }
+    var isDrawing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // hold info for display
@@ -56,7 +62,14 @@ fun OwnerViewLotteryDetails(
     var campsiteNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var entrantNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
-
+    DisposableEffect(deviceId) {
+        val db = FirebaseFirestore.getInstance()
+        val userListener = db.collection("users").document(deviceId)
+            .addSnapshotListener { snapshot, _ ->
+                isAdmin = snapshot?.toObject(User::class.java)?.isAdmin == true
+            }
+        onDispose { userListener.remove() }
+    }
 
     DisposableEffect(waitlistId) {
         val db = FirebaseFirestore.getInstance()
@@ -74,6 +87,7 @@ fun OwnerViewLotteryDetails(
                 val wlist = snapshot.toObject(Waitlist::class.java)
 
                 if (wlist != null) {
+                    LotteryDrawManager.checkAndDrawIfExpired(wlist)
                     scope.launch { // one-time reads
                         try {
                             campsiteNames = wlist.campsiteIds
@@ -105,7 +119,6 @@ fun OwnerViewLotteryDetails(
                         }
                     }
                 }
-
 
                 waitlist = wlist
                 isLoading = false
@@ -139,14 +152,36 @@ fun OwnerViewLotteryDetails(
                 Text("< Back")
             }
 
-            Button(
-                onClick = { navController.navigate("editLottery/${waitlistId}") },
-                shape = RectangleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
-                )
-            ) {
-                Text("Edit")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isAdmin && waitlist != null && !waitlist!!.isDrawn) {
+                    Button(
+                        onClick = {
+                            waitlist?.let { wl ->
+                                isDrawing = true
+                                LotteryDrawManager.drawManually(wl) {
+                                    isDrawing = false
+                                }
+                            }
+                        },
+                        enabled = !isDrawing,
+                        shape = RectangleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFBC6C25)
+                        )
+                    ) {
+                        Text(if (isDrawing) "Drawing..." else "Draw Now (Admin)")
+                    }
+                }
+
+                Button(
+                    onClick = { navController.navigate("editLottery/${waitlistId}") },
+                    shape = RectangleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = buttonColor
+                    )
+                ) {
+                    Text("Edit")
+                }
             }
         }
 

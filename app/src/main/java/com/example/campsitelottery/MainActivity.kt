@@ -52,6 +52,8 @@ class MainActivity : ComponentActivity() {
         NotificationHelper.setPermissionRequester {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+        LotteryDrawWorker.schedule(applicationContext)
+        LotteryDrawManager.checkAndDrawAllExpiredLotteries()
         enableEdgeToEdge()
         setContent {
             CampsiteLotteryTheme {

@@ -85,6 +85,7 @@ fun LotteryScreen(
                     ?.filter { userId in it.joinedEntrantIds || userId in it.selectedWinnerIds ||
                         userId in it.declinedEntrantIds || userId in it.bookedEntrantIds }
                     .orEmpty()
+                mine.forEach { LotteryDrawManager.checkAndDrawIfExpired(it) }
                 waitlists = mine
                 isLoading = false
 
