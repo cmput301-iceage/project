@@ -7,6 +7,9 @@
  */
 package com.example.campsitelottery
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -28,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.firestore.FirebaseFirestore
@@ -61,6 +65,7 @@ private val CampsiteFilterSaver = listSaver<CampsiteFilter, Any?>(
  * @param userRepository where user profiles are stored.
  * @param qrScanner opens the camera to scan a campsite's QR code; Google's code scanner by default.
  */
+@SuppressLint("MissingPermission")
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -191,6 +196,23 @@ fun HomeScreen(
             ) {
                 Text("Profile")
             }
+
+            /**
+             * NOTIFICATION TEST BUTTON
+             */
+            Button(onClick = {
+                if (userState is UserState.Ready) {
+                    NotificationHelper.sendNotification(
+                        1,
+                        "Download Complete",
+                        "Your file is ready!",
+                        userState
+                    )
+                }
+            }) {
+                Text("Send Notification")
+            }
+
         }
 
         Spacer(modifier = Modifier.height(16.dp))
