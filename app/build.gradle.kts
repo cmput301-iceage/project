@@ -62,7 +62,8 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-database")
 
-    // QR codes: ZXing draws campsite codes, Google's code scanner reads them
+    // QR codes: ZXing draws campsite codes, Google's code scanner reads them.
+    // Added with Claude (Anthropic, Claude Opus 5.5). Estimated AI-generated share of this file: ~4%
     implementation("com.google.zxing:core:3.5.4")
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 
