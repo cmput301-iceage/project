@@ -21,7 +21,7 @@ class ReviewRemovalTest {
     fun setUp() {
         repo = InMemoryReviewRepository(
             listOf(Campsite(campsiteId = "site1", ownerId = "owner")),
-            clock = { Date(now++) },
+            clock = { Date(now) }, // tests move the clock themselves
         )
     }
 
@@ -70,10 +70,21 @@ class ReviewRemovalTest {
     }
 
     @Test
-    fun repostWithTheSameTextIsNotRemoved() {
-        // The admin objected to the author's name; the author changes it and reposts the same text.
+    fun repostUnderANewNameIsNotRemoved() {
+        // The admin objected to the author's name; the author changes it and reposts the
+        // same text. The clock doesn't move, so only the name differs.
         val seen = post("guest", "Nice place", name = "Rude name")
         post("guest", "Nice place", name = "Sam")
+        assertEquals(ReviewPolicy.CHANGED_MESSAGE, remove("guest", expected = seen)?.message)
+        assertEquals(listOf("guest"), reviewers())
+    }
+
+    @Test
+    fun laterRepostOfTheSameReviewIsNotRemoved() {
+        // Same name and text, posted again later: only updatedAt differs.
+        val seen = post("guest", "Nice place")
+        now += 1
+        post("guest", "Nice place")
         assertEquals(ReviewPolicy.CHANGED_MESSAGE, remove("guest", expected = seen)?.message)
         assertEquals(listOf("guest"), reviewers())
     }
