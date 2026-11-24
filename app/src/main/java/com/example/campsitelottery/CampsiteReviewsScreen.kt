@@ -104,7 +104,7 @@ fun CampsiteReviewsScreen(
         reviewRepository.getReviews(
             campsiteId,
             onSuccess = {
-                reviews = it
+                reviews = it.filter(ReviewPolicy::isShownToUsers)
                 isLoading = false
             },
             onFailure = {

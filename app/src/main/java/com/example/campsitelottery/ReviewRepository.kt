@@ -48,15 +48,15 @@ interface ReviewRepository {
      * Removes [userId]'s review of [campsiteId], for admins taking down reviews
      * that violate the app policy.
      *
-     * Fails if the review doesn't exist, or if its text is no longer
-     * [expectedText] (the user edited it after the admin read it).
+     * Fails if the review doesn't exist, or if it no longer matches [expected]
+     * (the user reposted it after the admin read it).
      *
-     * @param expectedText the text the admin saw, or null to remove whatever is stored.
+     * @param expected the review as the admin saw it, or null to remove whatever is stored.
      */
     fun removeReview(
         campsiteId: String,
         userId: String,
-        expectedText: String?,
+        expected: Review?,
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit,
     )

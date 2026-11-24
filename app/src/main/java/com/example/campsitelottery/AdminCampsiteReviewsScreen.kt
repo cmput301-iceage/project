@@ -106,7 +106,7 @@ fun AdminCampsiteReviewsScreen(
         reviewRepository.removeReview(
             campsiteId,
             review.userId,
-            expectedText = review.text,
+            expected = review,
             onSuccess = {
                 removingUserId = null
                 reviews = reviews.filterNot { it.userId == review.userId }

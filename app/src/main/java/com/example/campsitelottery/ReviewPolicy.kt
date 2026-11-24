@@ -53,8 +53,14 @@ object ReviewPolicy {
     fun displayDate(date: Date?): String =
         date?.let { SimpleDateFormat("MMM d, yyyy", Locale.US).format(it) } ?: "Just now"
 
-    /** Error shown when a review was edited between an admin reading it and removing it. */
+    /** Error shown when a review was reposted between an admin reading it and removing it. */
     const val CHANGED_MESSAGE = "This review was edited. Read it again before removing it."
+
+    /**
+     * Whether [review] is shown to users. A stored review with no readable text
+     * is malformed: only admins see it, so they can remove it.
+     */
+    fun isShownToUsers(review: Review): Boolean = review.text.isNotBlank()
 
     /**
      * Reads a stored text field. Anything that isn't a string comes back empty,

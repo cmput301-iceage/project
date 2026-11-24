@@ -155,7 +155,7 @@ class AdminCampsiteReviewsScreenTest {
             override fun removeReview(
                 campsiteId: String,
                 userId: String,
-                expectedText: String?,
+                expected: Review?,
                 onSuccess: () -> Unit,
                 onFailure: (Exception) -> Unit,
             ) = Unit

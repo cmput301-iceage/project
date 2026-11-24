@@ -6,6 +6,7 @@
  */
 package com.example.campsitelottery
 
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.Date
@@ -32,20 +33,21 @@ class FirestoreReviewRepository(
         if (campsiteId.isBlank()) return onSuccess(emptyList())
         reviews(campsiteId).get()
             .addOnSuccessListener { snapshot ->
-                // Parsed field by field: a malformed review is still listed so an
-                // admin can remove it, instead of being silently dropped.
-                val list = snapshot.documents.map { doc ->
-                    Review(
-                        userId = doc.id,
-                        authorName = ReviewPolicy.parseStoredText(doc.get("authorName")),
-                        text = ReviewPolicy.parseStoredText(doc.get("text")),
-                        updatedAt = runCatching { doc.getDate("updatedAt") }.getOrNull(),
-                    )
-                }
-                onSuccess(ReviewPolicy.sortNewestFirst(list))
+                onSuccess(ReviewPolicy.sortNewestFirst(snapshot.documents.map(::toReview)))
             }
             .addOnFailureListener(onFailure)
     }
+
+    /**
+     * Reads a stored review field by field, so a malformed review is still listed
+     * for admins to remove instead of being silently dropped.
+     */
+    private fun toReview(doc: DocumentSnapshot) = Review(
+        userId = doc.id,
+        authorName = ReviewPolicy.parseStoredText(doc.get("authorName")),
+        text = ReviewPolicy.parseStoredText(doc.get("text")),
+        updatedAt = runCatching { doc.getDate("updatedAt") }.getOrNull(),
+    )
 
     override fun submitReview(
         campsiteId: String,
@@ -90,7 +92,7 @@ class FirestoreReviewRepository(
     override fun removeReview(
         campsiteId: String,
         userId: String,
-        expectedText: String?,
+        expected: Review?,
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit,
     ) {
@@ -99,14 +101,13 @@ class FirestoreReviewRepository(
         }
         val reviewRef = reviews(campsiteId).document(userId)
 
-        // Read and delete in one transaction, so an edit made after the admin read
-        // the review isn't deleted unseen.
+        // Read and delete in one transaction, so a review reposted after the admin
+        // read it isn't deleted unseen. Every post sets a new updatedAt, so comparing
+        // the whole review also catches a repost with the same text.
         db.runTransaction { tx ->
-            val review = tx.get(reviewRef)
-            check(review.exists()) { "This review was already removed." }
-            check(expectedText == null || expectedText == ReviewPolicy.parseStoredText(review.get("text"))) {
-                ReviewPolicy.CHANGED_MESSAGE
-            }
+            val doc = tx.get(reviewRef)
+            check(doc.exists()) { "This review was already removed." }
+            check(expected == null || expected == toReview(doc)) { ReviewPolicy.CHANGED_MESSAGE }
             tx.delete(reviewRef)
         }
             .addOnSuccessListener { onSuccess() }

@@ -113,6 +113,20 @@ class CampsiteReviewsScreenTest {
     }
 
     @Test
+    fun malformedReviewsAreHiddenFromUsers() {
+        // A stored review with no readable text, e.g. its text field isn't a string.
+        val repo = InMemoryReviewRepository(
+            listOf(site),
+            mapOf("site1" to listOf(Review("guest", "Jane", "", Date()), Review("other", "Sam", "Loved it", Date(0)))),
+        )
+        showScreen(deviceId = "guest", repo = repo)
+        composeRule.onNodeWithTag("reviewCard_guest").assertDoesNotExist()
+        composeRule.onNodeWithText("Loved it").assertExists()
+        // The author can write a fresh review, which replaces the malformed one.
+        composeRule.onNodeWithTag("writeReviewButton").assertTextEquals("Write a Review")
+    }
+
+    @Test
     fun ownerSeesReviewsButCannotWriteOne() {
         val repo = InMemoryReviewRepository(
             listOf(site),
