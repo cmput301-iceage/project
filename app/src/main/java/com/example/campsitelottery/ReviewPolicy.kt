@@ -53,6 +53,15 @@ object ReviewPolicy {
     fun displayDate(date: Date?): String =
         date?.let { SimpleDateFormat("MMM d, yyyy", Locale.US).format(it) } ?: "Just now"
 
+    /** Error shown when a review was edited between an admin reading it and removing it. */
+    const val CHANGED_MESSAGE = "This review was edited. Read it again before removing it."
+
+    /**
+     * Reads a stored text field. Anything that isn't a string comes back empty,
+     * so a malformed review is still listed and can be removed by an admin.
+     */
+    fun parseStoredText(raw: Any?): String = raw as? String ?: ""
+
     /** Newest reviews first; reviews with no date yet (just posted) come first. */
     fun sortNewestFirst(reviews: List<Review>): List<Review> =
         reviews.sortedByDescending { it.updatedAt?.time ?: Long.MAX_VALUE }

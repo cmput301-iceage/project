@@ -146,6 +146,10 @@ fun CampsiteLotteryApp(
             val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
             AdminCampsiteRatingsScreen(navController, campsiteId)
         }
+        composable("adminCampsiteReviews/{campsiteId}") { backStackEntry ->
+            val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
+            AdminCampsiteReviewsScreen(navController, campsiteId)
+        }
         composable("adminImages") {AdminImagesScreen(navController)}
         composable("adminMessages") { AdminMessagesScreen(navController) }
         composable("messages") {
