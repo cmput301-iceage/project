@@ -52,6 +52,41 @@ class ProfileValidatorTest {
     }
 
     @Test
+    fun phoneDigitCount_acceptsSevenToFifteen() {
+        assertNotNull(ProfileValidator.validate("Jane", "", "123456").phoneNumber)
+        assertNull(ProfileValidator.validate("Jane", "", "1234567").phoneNumber)
+        assertNull(ProfileValidator.validate("Jane", "", "123456789012345").phoneNumber)
+        assertNotNull(ProfileValidator.validate("Jane", "", "1234567890123456").phoneNumber)
+    }
+
+    @Test
+    fun phoneDigitCount_ignoresPlusAndSeparators() {
+        assertNull(ProfileValidator.validate("Jane", "", "+1 (23) 456-7").phoneNumber)
+        assertNotNull(ProfileValidator.validate("Jane", "", "+ ( ) - .").phoneNumber)
+    }
+
+    @Test
+    fun blankPhone_isAllowed() {
+        assertNull(ProfileValidator.validate("Jane", "", "   ").phoneNumber)
+    }
+
+    @Test
+    fun errors_areReportedPerField() {
+        val errors = ProfileValidator.validate("", "jane", "123")
+        assertNotNull(errors.name)
+        assertNotNull(errors.email)
+        assertNotNull(errors.phoneNumber)
+    }
+
+    @Test
+    fun isValid_isFalseIfAnyFieldHasAnError() {
+        assertTrue(ProfileInputErrors().isValid)
+        assertFalse(ProfileInputErrors(name = "error").isValid)
+        assertFalse(ProfileInputErrors(email = "error").isValid)
+        assertFalse(ProfileInputErrors(phoneNumber = "error").isValid)
+    }
+
+    @Test
     fun normalize_trimsAndClearsBlankPhone() {
         assertEquals("Jane", ProfileValidator.normalizeName("  Jane "))
         assertEquals("jane@example.com", ProfileValidator.normalizeEmail(" jane@example.com "))

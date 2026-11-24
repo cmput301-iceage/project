@@ -1,0 +1,122 @@
+{
+    "owner_01": {
+        "name": "Alex Morgan",
+        "email": "alex@example.com",
+        "phoneNumber": "780-555-0101",
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "entrant": true,
+        "owner": true,
+        "admin": false
+    },
+    "owner_02": {
+        "name": "Jamie Wilson",
+        "email": "jamie@example.com",
+        "phoneNumber": "780-555-0101",
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "entrant": true,
+        "owner": true,
+        "admin": false
+    },
+    "owner_03": {
+        "name": "Taylor Brooks",
+        "email": "taylor@example.com",
+        "phoneNumber": "780-555-0101",
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "entrant": true,
+        "owner": true,
+        "admin": false
+    },
+    "entrant_01": {
+        "name": "Jordan Lee",
+        "email": "entrant_01@example.com",
+        "phoneNumber": null,
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "isEntrant": true,
+        "isOwner": false,
+        "isAdmin": false
+    },
+    "entrant_02": {
+        "name": "Morgan Smith",
+        "email": "entrant_02@example.com",
+        "phoneNumber": null,
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "isEntrant": true,
+        "isOwner": false,
+        "isAdmin": false
+    },
+    "entrant_03": {
+        "name": "Casey Brown",
+        "email": "entrant_03@example.com",
+        "phoneNumber": null,
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "isEntrant": true,
+        "isOwner": false,
+        "isAdmin": false
+    },
+    "entrant_04": {
+        "name": "Riley Davis",
+        "email": "entrant_04@example.com",
+        "phoneNumber": null,
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "isEntrant": true,
+        "isOwner": false,
+        "isAdmin": false
+    },
+    "entrant_05": {
+        "name": "Avery Wilson",
+        "email": "entrant_05@example.com",
+        "phoneNumber": null,
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "isEntrant": true,
+        "isOwner": false,
+        "isAdmin": false
+    },
+    "entrant_06": {
+        "name": "Cameron Taylor",
+        "email": "entrant_06@example.com",
+        "phoneNumber": null,
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "isEntrant": true,
+        "isOwner": false,
+        "isAdmin": false
+    },
+    "entrant_07": {
+        "name": "Drew Anderson",
+        "email": "entrant_07@example.com",
+        "phoneNumber": null,
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "isEntrant": true,
+        "isOwner": false,
+        "isAdmin": false
+    },
+    "entrant_08": {
+        "name": "Parker Thomas",
+        "email": "entrant_08@example.com",
+        "phoneNumber": null,
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "isEntrant": true,
+        "isOwner": false,
+        "isAdmin": false
+    },
+    "entrant_09": {
+        "name": "Quinn Martin",
+        "email": "entrant_09@example.com",
+        "phoneNumber": null,
+        "profileImageUrl": null,
+        "notificationsEnabled": true,
+        "isEntrant": true,
+        "isOwner": false,
+        "isAdmin": false
+    }
+}

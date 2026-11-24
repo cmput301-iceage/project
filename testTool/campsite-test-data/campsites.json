@@ -1,0 +1,551 @@
+{
+    "campsite_01": {
+        "ownerId": "owner_01",
+        "name": "Pine Ridge Retreat",
+        "description": "Enjoy a relaxing outdoor getaway at Pine Ridge Retreat. Perfect for camping, hiking, and enjoying nature.",
+        "address": "100 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.57398535969158,
+            "longitude": -113.58879784895547
+        },
+        "maxOccupancy": 6,
+        "pricePerNight": 35.0,
+        "rating": 3.8,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Fishing",
+            "Picnic Table",
+            "Hiking Trails"
+        ],
+        "tags": [
+            "Lakefront",
+            "Forest"
+        ]
+    },
+    "campsite_02": {
+        "ownerId": "owner_01",
+        "name": "Eagle Lake Camp",
+        "description": "Enjoy a relaxing outdoor getaway at Eagle Lake Camp. Perfect for camping, hiking, and enjoying nature.",
+        "address": "101 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.94372759496072,
+            "longitude": -113.99892894237932
+        },
+        "maxOccupancy": 2,
+        "pricePerNight": 65.0,
+        "rating": 3.8,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Washroom",
+            "Pet Friendly",
+            "Drinking Water",
+            "Hiking Trails",
+            "Fire Pit",
+            "Picnic Table"
+        ],
+        "tags": [
+            "Hiking",
+            "Fishing",
+            "Remote",
+            "Forest"
+        ]
+    },
+    "campsite_03": {
+        "ownerId": "owner_01",
+        "name": "Whispering Pines",
+        "description": "Enjoy a relaxing outdoor getaway at Whispering Pines. Perfect for camping, hiking, and enjoying nature.",
+        "address": "102 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 52.84306275242152,
+            "longitude": -114.4473011741987
+        },
+        "maxOccupancy": 2,
+        "pricePerNight": 25.0,
+        "rating": 4.1,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Lake Access",
+            "Drinking Water",
+            "Fire Pit",
+            "Shower",
+            "Washroom"
+        ],
+        "tags": [
+            "Forest",
+            "Hiking",
+            "Quiet",
+            "Remote"
+        ]
+    },
+    "campsite_04": {
+        "ownerId": "owner_01",
+        "name": "Cedar Creek Site",
+        "description": "Enjoy a relaxing outdoor getaway at Cedar Creek Site. Perfect for camping, hiking, and enjoying nature.",
+        "address": "103 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.15863565628142,
+            "longitude": -112.87427204010112
+        },
+        "maxOccupancy": 6,
+        "pricePerNight": 65.0,
+        "rating": 3.8,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Fire Pit",
+            "Washroom",
+            "Drinking Water"
+        ],
+        "tags": [
+            "Family Friendly",
+            "Forest"
+        ]
+    },
+    "campsite_05": {
+        "ownerId": "owner_01",
+        "name": "Mountain View Escape",
+        "description": "Enjoy a relaxing outdoor getaway at Mountain View Escape. Perfect for camping, hiking, and enjoying nature.",
+        "address": "104 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 54.27602524500783,
+            "longitude": -115.20931793952631
+        },
+        "maxOccupancy": 6,
+        "pricePerNight": 35.0,
+        "rating": 4.1,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Drinking Water",
+            "Picnic Table",
+            "Parking",
+            "Shower"
+        ],
+        "tags": [
+            "Family Friendly",
+            "Mountain",
+            "RV Friendly",
+            "Quiet"
+        ]
+    },
+    "campsite_06": {
+        "ownerId": "owner_01",
+        "name": "Bear Paw Campground",
+        "description": "Enjoy a relaxing outdoor getaway at Bear Paw Campground. Perfect for camping, hiking, and enjoying nature.",
+        "address": "105 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.50008956535686,
+            "longitude": -113.40872176407575
+        },
+        "maxOccupancy": 4,
+        "pricePerNight": 80.0,
+        "rating": 4.0,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Washroom",
+            "Fire Pit",
+            "Lake Access"
+        ],
+        "tags": [
+            "Remote",
+            "Forest",
+            "Family Friendly"
+        ]
+    },
+    "campsite_07": {
+        "ownerId": "owner_01",
+        "name": "Hidden Valley",
+        "description": "Enjoy a relaxing outdoor getaway at Hidden Valley. Perfect for camping, hiking, and enjoying nature.",
+        "address": "106 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 54.08262722483711,
+            "longitude": -113.9865639897043
+        },
+        "maxOccupancy": 6,
+        "pricePerNight": 35.0,
+        "rating": 4.5,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Pet Friendly",
+            "Parking",
+            "Drinking Water",
+            "Picnic Table",
+            "Hiking Trails",
+            "Shower"
+        ],
+        "tags": [
+            "Remote",
+            "Hiking",
+            "Tent Camping",
+            "Mountain"
+        ]
+    },
+    "campsite_08": {
+        "ownerId": "owner_02",
+        "name": "Sunset Lake Retreat",
+        "description": "Enjoy a relaxing outdoor getaway at Sunset Lake Retreat. Perfect for camping, hiking, and enjoying nature.",
+        "address": "107 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 52.843864151831454,
+            "longitude": -114.40049247870098
+        },
+        "maxOccupancy": 8,
+        "pricePerNight": 25.0,
+        "rating": 4.6,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Parking",
+            "Shower",
+            "Hiking Trails"
+        ],
+        "tags": [
+            "Forest",
+            "Hiking",
+            "Tent Camping",
+            "Remote"
+        ]
+    },
+    "campsite_09": {
+        "ownerId": "owner_02",
+        "name": "Wildwood Camping",
+        "description": "Enjoy a relaxing outdoor getaway at Wildwood Camping. Perfect for camping, hiking, and enjoying nature.",
+        "address": "108 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.29922427604802,
+            "longitude": -112.89417713098018
+        },
+        "maxOccupancy": 2,
+        "pricePerNight": 80.0,
+        "rating": 4.6,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Lake Access",
+            "Picnic Table",
+            "Drinking Water",
+            "Washroom",
+            "Fishing"
+        ],
+        "tags": [
+            "Lakefront",
+            "Remote",
+            "Mountain"
+        ]
+    },
+    "campsite_10": {
+        "ownerId": "owner_02",
+        "name": "Blue Spruce Haven",
+        "description": "Enjoy a relaxing outdoor getaway at Blue Spruce Haven. Perfect for camping, hiking, and enjoying nature.",
+        "address": "109 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 54.30153633492086,
+            "longitude": -115.27871783544046
+        },
+        "maxOccupancy": 6,
+        "pricePerNight": 80.0,
+        "rating": 4.3,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Parking",
+            "Lake Access",
+            "Shower",
+            "Drinking Water"
+        ],
+        "tags": [
+            "Lakefront",
+            "Fishing",
+            "RV Friendly",
+            "Quiet"
+        ]
+    },
+    "campsite_11": {
+        "ownerId": "owner_02",
+        "name": "Rocky Point Camp",
+        "description": "Enjoy a relaxing outdoor getaway at Rocky Point Camp. Perfect for camping, hiking, and enjoying nature.",
+        "address": "110 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.468473545064185,
+            "longitude": -113.52120384656381
+        },
+        "maxOccupancy": 6,
+        "pricePerNight": 35.0,
+        "rating": 3.6,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Picnic Table",
+            "Pet Friendly",
+            "Shower"
+        ],
+        "tags": [
+            "Mountain",
+            "Quiet",
+            "RV Friendly",
+            "Remote"
+        ]
+    },
+    "campsite_12": {
+        "ownerId": "owner_02",
+        "name": "Silver Birch Site",
+        "description": "Enjoy a relaxing outdoor getaway at Silver Birch Site. Perfect for camping, hiking, and enjoying nature.",
+        "address": "111 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.93302539179483,
+            "longitude": -113.99446524251636
+        },
+        "maxOccupancy": 8,
+        "pricePerNight": 35.0,
+        "rating": 4.9,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Drinking Water",
+            "Hiking Trails",
+            "Lake Access",
+            "Washroom"
+        ],
+        "tags": [
+            "RV Friendly",
+            "Forest",
+            "Family Friendly",
+            "Tent Camping"
+        ]
+    },
+    "campsite_13": {
+        "ownerId": "owner_02",
+        "name": "Moose Creek Retreat",
+        "description": "Enjoy a relaxing outdoor getaway at Moose Creek Retreat. Perfect for camping, hiking, and enjoying nature.",
+        "address": "112 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 52.81280517926527,
+            "longitude": -114.59579314799859
+        },
+        "maxOccupancy": 4,
+        "pricePerNight": 65.0,
+        "rating": 3.8,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Fire Pit",
+            "Washroom",
+            "Picnic Table"
+        ],
+        "tags": [
+            "Fishing",
+            "Forest"
+        ]
+    },
+    "campsite_14": {
+        "ownerId": "owner_02",
+        "name": "Northern Lights Camp",
+        "description": "Enjoy a relaxing outdoor getaway at Northern Lights Camp. Perfect for camping, hiking, and enjoying nature.",
+        "address": "113 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.202831223961724,
+            "longitude": -112.9443045472071
+        },
+        "maxOccupancy": 8,
+        "pricePerNight": 35.0,
+        "rating": 4.3,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Washroom",
+            "Pet Friendly",
+            "Hiking Trails",
+            "Picnic Table",
+            "Fire Pit",
+            "Lake Access"
+        ],
+        "tags": [
+            "Hiking",
+            "Fishing",
+            "Quiet",
+            "Family Friendly"
+        ]
+    },
+    "campsite_15": {
+        "ownerId": "owner_03",
+        "name": "Deer Valley",
+        "description": "Enjoy a relaxing outdoor getaway at Deer Valley. Perfect for camping, hiking, and enjoying nature.",
+        "address": "114 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 54.293404933607334,
+            "longitude": -115.15418483010804
+        },
+        "maxOccupancy": 2,
+        "pricePerNight": 25.0,
+        "rating": 4.1,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Picnic Table",
+            "Washroom",
+            "Fishing",
+            "Shower",
+            "Drinking Water"
+        ],
+        "tags": [
+            "Mountain",
+            "Hiking",
+            "Quiet"
+        ]
+    },
+    "campsite_16": {
+        "ownerId": "owner_03",
+        "name": "Crystal Lake Campsite",
+        "description": "Enjoy a relaxing outdoor getaway at Crystal Lake Campsite. Perfect for camping, hiking, and enjoying nature.",
+        "address": "115 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.501809028933394,
+            "longitude": -113.54383871042357
+        },
+        "maxOccupancy": 2,
+        "pricePerNight": 55.0,
+        "rating": 4.7,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Fire Pit",
+            "Fishing",
+            "Shower"
+        ],
+        "tags": [
+            "Family Friendly",
+            "Mountain"
+        ]
+    },
+    "campsite_17": {
+        "ownerId": "owner_03",
+        "name": "Aspen Grove",
+        "description": "Enjoy a relaxing outdoor getaway at Aspen Grove. Perfect for camping, hiking, and enjoying nature.",
+        "address": "116 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.981282811590496,
+            "longitude": -114.0037283164058
+        },
+        "maxOccupancy": 8,
+        "pricePerNight": 25.0,
+        "rating": 3.7,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Hiking Trails",
+            "Drinking Water",
+            "Pet Friendly"
+        ],
+        "tags": [
+            "Hiking",
+            "Tent Camping",
+            "RV Friendly"
+        ]
+    },
+    "campsite_18": {
+        "ownerId": "owner_03",
+        "name": "Raven's Nest",
+        "description": "Enjoy a relaxing outdoor getaway at Raven's Nest. Perfect for camping, hiking, and enjoying nature.",
+        "address": "117 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 52.83095936505481,
+            "longitude": -114.54065843490109
+        },
+        "maxOccupancy": 2,
+        "pricePerNight": 65.0,
+        "rating": 4.6,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Lake Access",
+            "Fire Pit",
+            "Fishing"
+        ],
+        "tags": [
+            "RV Friendly",
+            "Tent Camping",
+            "Mountain",
+            "Lakefront"
+        ]
+    },
+    "campsite_19": {
+        "ownerId": "owner_03",
+        "name": "Tranquil Shores",
+        "description": "Enjoy a relaxing outdoor getaway at Tranquil Shores. Perfect for camping, hiking, and enjoying nature.",
+        "address": "118 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 53.292155780654895,
+            "longitude": -112.98397770695189
+        },
+        "maxOccupancy": 4,
+        "pricePerNight": 25.0,
+        "rating": 4.4,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Hiking Trails",
+            "Picnic Table",
+            "Washroom",
+            "Drinking Water"
+        ],
+        "tags": [
+            "Lakefront",
+            "Forest",
+            "Hiking",
+            "Fishing"
+        ]
+    },
+    "campsite_20": {
+        "ownerId": "owner_03",
+        "name": "Timberline Escape",
+        "description": "Enjoy a relaxing outdoor getaway at Timberline Escape. Perfect for camping, hiking, and enjoying nature.",
+        "address": "119 Forest Road, Alberta, Canada",
+        "location": {
+            "latitude": 54.31673445785824,
+            "longitude": -115.19544345689361
+        },
+        "maxOccupancy": 6,
+        "pricePerNight": 35.0,
+        "rating": 4.5,
+        "imageUrl": null,
+        "rules": "No littering. Respect quiet hours. Keep campfires within designated fire pits.",
+        "cancellationPolicy": "Full refund up to 7 days before check-in.",
+        "amenities": [
+            "Washroom",
+            "Drinking Water",
+            "Hiking Trails",
+            "Picnic Table",
+            "Lake Access"
+        ],
+        "tags": [
+            "Remote",
+            "RV Friendly",
+            "Fishing",
+            "Hiking"
+        ]
+    }
+}

@@ -17,7 +17,7 @@ class AdminScreenUITest {
     @get:Rule
     val composeTestRule = createAndroidComposeRule<MainActivity>() // access MainActivity
 
-    //TODO: set database starting state
+
 
     @Test
     fun navigateToAdminDash_thenToProfiles_andBack()
