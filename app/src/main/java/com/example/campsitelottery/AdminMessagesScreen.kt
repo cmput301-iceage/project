@@ -100,7 +100,7 @@ fun AdminMessagesScreen(
             Button(
                 onClick = { navController.popBackStack() },
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = Color.White),
                 modifier = Modifier.testTag("backButton"),
             ) {
                 Text("< Back")

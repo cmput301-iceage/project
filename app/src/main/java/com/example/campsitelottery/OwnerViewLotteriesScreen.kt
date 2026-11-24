@@ -130,7 +130,8 @@ fun OwnerViewLotteriesScreen(
                 onClick = { navController.popBackStack() },
                 shape = RectangleShape,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
+                    containerColor = buttonColor,
+                    contentColor = Color.White
                 )
             ) {
                 Text("< Back")
