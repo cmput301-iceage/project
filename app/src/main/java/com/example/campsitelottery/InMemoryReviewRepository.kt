@@ -62,4 +62,21 @@ class InMemoryReviewRepository(
         stored[campsiteId to userId] = review
         onSuccess(review)
     }
+
+    override fun removeReview(
+        campsiteId: String,
+        userId: String,
+        expected: Review?,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        failWith?.let { return onFailure(it) }
+        val review = stored[campsiteId to userId]
+            ?: return onFailure(IllegalStateException("This review was already removed."))
+        if (expected != null && expected != review) {
+            return onFailure(IllegalStateException(ReviewPolicy.CHANGED_MESSAGE))
+        }
+        stored.remove(campsiteId to userId)
+        onSuccess()
+    }
 }
