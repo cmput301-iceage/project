@@ -127,7 +127,8 @@ fun AdminProfilesScreen(
                 onClick = { navController.popBackStack() },
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
+                    containerColor = buttonColor,
+                    contentColor = Color.White
                 ),
                 modifier = Modifier
                     .testTag("backButton")
@@ -160,7 +161,8 @@ fun AdminProfilesScreen(
                 },
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
+                    containerColor = buttonColor,
+                    contentColor = Color.White
                 ),
                 modifier = Modifier.testTag("deleteButton")
 

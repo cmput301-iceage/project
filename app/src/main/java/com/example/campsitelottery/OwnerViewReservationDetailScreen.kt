@@ -122,7 +122,8 @@ fun OwnerViewReservationDetailScreen(
                 onClick = { navController.popBackStack() },
                 shape = RectangleShape,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
+                    containerColor = buttonColor,
+                    contentColor = Color.White
                 )
             ) {
                 Text("< Back")
@@ -235,7 +236,7 @@ fun OwnerViewReservationDetailScreen(
                         Button(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RectangleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                            colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = Color.White),
                             onClick = { showMessageEntrantDialog = true },
                         ) {
                             Text("Message Entrant")
@@ -249,7 +250,8 @@ fun OwnerViewReservationDetailScreen(
                                     .fillMaxSize(),
                                 shape = RectangleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = buttonColor
+                                    containerColor = buttonColor,
+                                    contentColor = Color.White
                                 ),
                                 onClick = {
                                     FirebaseFirestore.getInstance()
