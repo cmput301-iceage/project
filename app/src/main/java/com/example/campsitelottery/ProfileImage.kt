@@ -83,16 +83,19 @@ object ProfileImagePolicy {
         val shorter = minOf(width, height)
         var sample = 1
         while (shorter / (sample * 2) >= target) sample *= 2
-        while ((width.toLong() / sample) * (height.toLong() / sample) > maxPixels) sample *= 2
+        // Rounded up, as the decoder may round up too.
+        while (ceilDiv(width, sample) * ceilDiv(height, sample) > maxPixels) sample *= 2
         return sample
     }
 
     /** The power-of-two factor that brings the longest side of a [width] x [height] image down to [maxSide] or less. */
     fun sampleSizeToFit(width: Int, height: Int, maxSide: Int = MAX_DISPLAY_PX): Int {
         var sample = 1
-        while (maxOf(width, height) / sample > maxSide) sample *= 2
+        while (ceilDiv(maxOf(width, height), sample) > maxSide) sample *= 2
         return sample
     }
+
+    private fun ceilDiv(value: Int, divisor: Int): Long = (value.toLong() + divisor - 1) / divisor
 
     /** The centred square to crop from a [width] x [height] image, as (left, top, side). */
     fun centerSquare(width: Int, height: Int): Triple<Int, Int, Int> {
@@ -240,7 +243,11 @@ fun rememberProfileImagePicker(onPicked: () -> Unit, onResult: (String?) -> Unit
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         currentOnPicked()
-        scope.launch { currentOnResult(encodeProfileImage(context, uri)) }
+        scope.launch {
+            val encoded = encodeProfileImage(context, uri)
+            // Read the handler after encoding, in case the screen changed meanwhile.
+            currentOnResult(encoded)
+        }
     }
     return remember(launcher) {
         ProfileImagePicker {

@@ -107,7 +107,8 @@ class ProfileImageEncodeTest {
 
     @Test
     fun aVeryLongPanoramaIsHandled() = runBlocking {
-        val encoded = encodeProfileImage(context, splitImage(12_000, 300))
+        // 16000 x 400 is 6.4 MP, above the decode cap.
+        val encoded = encodeProfileImage(context, splitImage(16_000, 400))
         assertNotNull(encoded)
         assertEquals(ProfileImagePolicy.SIZE_PX, decode(encoded!!).width)
     }
@@ -156,6 +157,16 @@ class ProfileImageEncodeTest {
     @Test
     fun aMissingFileIsRejected() = runBlocking {
         assertNull(encodeProfileImage(context, Uri.fromFile(File(context.cacheDir, "missing.jpg"))))
+    }
+
+    @Test
+    fun anOversizedStoredPictureIsShrunkForDisplay() {
+        // A picture written some other way, much bigger than this app would save.
+        val big = Bitmap.createBitmap(3000, 2000, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GREEN) }
+        val out = java.io.ByteArrayOutputStream()
+        big.compress(Bitmap.CompressFormat.JPEG, 80, out)
+        val shown = decodeProfileImage(Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))!!
+        assertTrue("shown at ${shown.width} x ${shown.height}", maxOf(shown.width, shown.height) <= ProfileImagePolicy.MAX_DISPLAY_PX)
     }
 
     @Test

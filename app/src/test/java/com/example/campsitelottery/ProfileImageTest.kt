@@ -63,6 +63,15 @@ class ProfileImageTest {
         assertEquals(1, ProfileImagePolicy.sampleSizeToFit(512, 300))
         assertEquals(2, ProfileImagePolicy.sampleSizeToFit(1000, 1000))
         assertEquals(32, ProfileImagePolicy.sampleSizeToFit(10_000, 100))
+        // 1025 / 2 can decode to 513 pixels, so it needs 4.
+        assertEquals(4, ProfileImagePolicy.sampleSizeToFit(1025, 100))
+    }
+
+    @Test
+    fun thePixelCapAllowsForRoundingUp() {
+        // At sample 2, 15999 x 1001 can decode to 8000 x 501 = 4,008,000 pixels.
+        val sample = ProfileImagePolicy.sampleSizeFor(15_999, 1001)
+        assertTrue(((15_999L + sample - 1) / sample) * ((1001L + sample - 1) / sample) <= ProfileImagePolicy.MAX_DECODE_PIXELS)
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.example.campsitelottery
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.os.Build
 import android.util.Base64
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -79,6 +80,7 @@ class ProfileImageScreenTest {
 
     private lateinit var repo: InMemoryUserRepository
     private val chooser = FakePicker()
+    private var saves = 0
 
     /** Colour at the centre of the profile picture as shown on screen. */
     private fun shownColor(): Int {
@@ -88,13 +90,20 @@ class ProfileImageScreenTest {
 
     private fun showProfile(user: User) {
         repo = InMemoryUserRepository(listOf(user))
+        // Counts profile picture saves, passing everything through to repo.
+        val counting = object : UserRepository by repo {
+            override fun setProfileImage(userId: String, image: String?, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+                saves++
+                repo.setProfileImage(userId, image, onSuccess, onFailure)
+            }
+        }
         composeRule.setContent {
             // Stands in for the app's user state, which onUserChanged updates.
             var current by remember { mutableStateOf(user) }
             ProfileScreen(
                 navController = rememberNavController(),
                 userState = UserState.Ready(current),
-                userRepository = repo,
+                userRepository = counting,
                 onUserChanged = { change -> current = change(current) },
                 onUserDeleted = {},
                 imagePicker = chooser.factory,
@@ -129,13 +138,15 @@ class ProfileImageScreenTest {
     fun changingAPhotoReplacesIt() {
         showProfile(User(userId = "u1", name = "Jane", profileImageUrl = solidImage(Color.RED)))
         val blue = solidImage(Color.BLUE)
-        assertTrue(Color.red(shownColor()) > 180)
         chooser.next = blue
         composeRule.onNodeWithTag("choosePhotoButton").performClick()
         assertEquals(blue, repo.peek("u1")?.profileImageUrl)
         // The new picture is what's on screen, not just what's saved.
-        val shown = shownColor()
-        assertTrue(Color.blue(shown) > 180 && Color.red(shown) < 80)
+        // captureToImage needs API 26+; the app supports 24.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val shown = shownColor()
+            assertTrue(Color.blue(shown) > 180 && Color.red(shown) < 80)
+        }
     }
 
     @Test
@@ -152,9 +163,11 @@ class ProfileImageScreenTest {
         composeRule.onNodeWithTag("choosePhotoButton").assertIsNotEnabled()
         composeRule.onNodeWithTag("cancelEditButton").performScrollTo().performClick()
 
-        chooser.release()
+        // The real picker reports on the main thread.
+        composeRule.runOnIdle { chooser.release() }
         composeRule.waitForIdle()
         assertEquals(image, repo.peek("u1")?.profileImageUrl)
+        assertEquals("saved exactly once", 1, saves)
         composeRule.onNodeWithTag("choosePhotoButton").assertTextEquals("Change Photo")
     }
 
