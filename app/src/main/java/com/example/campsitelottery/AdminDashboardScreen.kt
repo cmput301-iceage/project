@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,7 +67,7 @@ fun AdminDashboardScreen(
 
         ) {
 
-        // Row for back button and centered header
+        // Row for back button, header and notif log
         Row(
             modifier = Modifier
                 .fillMaxWidth(),
@@ -95,7 +94,19 @@ fun AdminDashboardScreen(
                 modifier = Modifier.testTag("adminHeader")
             )
 
-            Spacer(modifier = Modifier.width(80.dp))
+            Button(
+                onClick = { navController.navigate("adminNotifications") },
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = buttonColor,
+                    contentColor = Color.White
+                ),
+                modifier = Modifier.testTag("toNotificationsButton")
+
+            ) {
+                // unicode for bell icon
+                Text("\uD83D\uDD14")
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
