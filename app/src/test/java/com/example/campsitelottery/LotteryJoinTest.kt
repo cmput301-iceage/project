@@ -24,9 +24,10 @@ class LotteryJoinTest {
         joined: List<String> = emptyList(),
         drawn: Boolean = false,
         owner: String = "owner",
+        campsites: List<String> = listOf("site1"),
     ) = Waitlist(
         waitlistId = id,
-        campsiteIds = listOf("site1"),
+        campsiteIds = campsites,
         ownerId = owner,
         lotteryName = "Lottery $id",
         registrationStartDate = Date(now.time + opensInDays * day),
@@ -57,73 +58,111 @@ class LotteryJoinTest {
     }
 
     @Test
-    fun aLotteryWithoutRegistrationDatesIsClosed() {
+    fun zeroCapacityIsFullAndNoLimitNeverIs() {
+        assertEquals(JoinStatus.FULL, status(lottery(capacity = 0)))
+        assertEquals(JoinStatus.CAN_JOIN, status(lottery(capacity = null, joined = List(500) { "u$it" })))
+    }
+
+    @Test
+    fun missingOrImpossibleRegistrationDatesAreClosed() {
         assertEquals(JoinStatus.CLOSED, status(lottery().copy(registrationStartDate = null)))
         assertEquals(JoinStatus.CLOSED, status(lottery().copy(registrationEndDate = null)))
+        // Ends before it starts: never "opens soon".
+        assertEquals(JoinStatus.CLOSED, status(lottery(opensInDays = 5, closesInDays = 2)))
+        assertEquals(JoinStatus.CLOSED, status(lottery(opensInDays = 2, closesInDays = 2)))
     }
 
     @Test
-    fun registrationClosesExactlyAtItsEndTime() {
-        assertEquals(JoinStatus.CLOSED, status(lottery(closesInDays = 0)))
+    fun registrationRunsFromItsStartUpToItsEnd() {
         assertEquals(JoinStatus.CAN_JOIN, status(lottery(opensInDays = 0)))
+        assertEquals(JoinStatus.CLOSED, status(lottery(closesInDays = 0)))
     }
 
+    private fun shown(vararg ws: Waitlist, user: String = "me", siteOwner: String? = null) =
+        LotteryJoinPolicy.lotteriesToShow(ws.toList(), user, now, siteOwner).map { it.waitlistId }
+
     @Test
-    fun theLotteryShownPrefersOneYouAreOnThenOneYouCanJoin() {
-        val joined = lottery(id = "joined", joined = listOf("me"))
+    fun theBestLotteryToJoinIsShown() {
         val open = lottery(id = "open")
         val full = lottery(id = "full", capacity = 1, joined = listOf("a"))
         val upcoming = lottery(id = "upcoming", opensInDays = 3, closesInDays = 9)
         val drawn = lottery(id = "drawn", drawn = true)
-        fun shown(vararg ws: Waitlist) = LotteryJoinPolicy.lotteryToShow(ws.toList(), "me", now)?.waitlistId
-
-        assertEquals("joined", shown(drawn, upcoming, full, open, joined))
-        assertEquals("open", shown(drawn, upcoming, full, open))
-        assertEquals("full", shown(drawn, upcoming, full))
-        assertEquals("upcoming", shown(drawn, upcoming))
-        assertNull(shown(drawn))
-        assertNull(shown(lottery(opensInDays = -9, closesInDays = -2)))
+        val closed = lottery(id = "closed", opensInDays = -9, closesInDays = -2)
+        assertEquals(listOf("open"), shown(drawn, closed, upcoming, full, open))
+        assertEquals(listOf("full"), shown(drawn, closed, upcoming, full))
+        assertEquals(listOf("upcoming"), shown(drawn, closed, upcoming))
+        assertEquals(emptyList<String>(), shown(drawn, closed))
     }
 
     @Test
-    fun theOpenLotteryClosingSoonestIsShownFirst() {
-        val later = lottery(id = "later", closesInDays = 9)
-        val sooner = lottery(id = "sooner", closesInDays = 2)
-        assertEquals("sooner", LotteryJoinPolicy.lotteryToShow(listOf(later, sooner), "me", now)?.waitlistId)
+    fun aPendingEntryIsShownAlongsideTheNextLotteryToJoin() {
+        // Joined, registration closed, not drawn yet: still shown so it can be left,
+        // without hiding a newer lottery that's open now.
+        val pending = lottery(id = "pending", opensInDays = -9, closesInDays = -1, joined = listOf("me"))
+        val open = lottery(id = "open")
+        assertEquals(listOf("pending", "open"), shown(open, pending))
+        assertEquals(listOf("pending"), shown(pending))
+        // Once the user joins the open one too, both stay visible so either can be left.
+        val joinedOpen = lottery(id = "open", joined = listOf("me"))
+        assertEquals(listOf("pending", "open"), shown(pending, joinedOpen))
     }
 
     @Test
-    fun theOwnerSeesTheirOpenLottery() {
-        val own = lottery(owner = "me")
-        assertEquals("w1", LotteryJoinPolicy.lotteryToShow(listOf(own), "me", now)?.waitlistId)
+    fun theOpenLotteryClosingSoonestIsShown() {
+        assertEquals(listOf("sooner"), shown(lottery(id = "later", closesInDays = 9), lottery(id = "sooner", closesInDays = 2)))
     }
 
     @Test
-    fun spotsAndRegistrationText() {
+    fun theOwnerSeesTheirOpenLotteryButNotUpcomingOnes() {
+        assertEquals(listOf("w1"), shown(lottery(owner = "me")))
+        assertEquals(emptyList<String>(), shown(lottery(owner = "me", opensInDays = 2)))
+    }
+
+    @Test
+    fun nextChangeIsTheNextRegistrationBoundary() {
+        val w = lottery(opensInDays = 2, closesInDays = 5)
+        assertEquals(Date(now.time + 2 * day), LotteryJoinPolicy.nextChange(listOf(w), now))
+        assertEquals(Date(now.time + 5 * day), LotteryJoinPolicy.nextChange(listOf(w), Date(now.time + 3 * day)))
+        assertNull(LotteryJoinPolicy.nextChange(listOf(w), Date(now.time + 6 * day)))
+    }
+
+    @Test
+    fun datesAreShownInUtcLikeTheRestOfTheApp() {
+        // Stored as midnight UTC on Dec 2; must not show as Dec 1 west of UTC.
+        val dec2 = dateISOFormat().parse("2026-12-02")!!
+        assertEquals("Dec 2, 2026", LotteryJoinPolicy.formatDate(dec2))
+        val w = lottery().copy(registrationStartDate = dateISOFormat().parse("2026-11-20"), registrationEndDate = dec2)
+        assertEquals("Registration: Nov 20 – Dec 2, 2026", LotteryJoinPolicy.registrationText(w))
+        val acrossYears = w.copy(registrationEndDate = dateISOFormat().parse("2027-01-05"))
+        assertEquals("Registration: Nov 20, 2026 – Jan 5, 2027", LotteryJoinPolicy.registrationText(acrossYears))
+    }
+
+    @Test
+    fun spotsText() {
         assertEquals("1 of 20 spots taken", LotteryJoinPolicy.spotsText(lottery(capacity = 20, joined = listOf("a"))))
         assertEquals("1 person has joined", LotteryJoinPolicy.spotsText(lottery(joined = listOf("a"))))
         assertEquals("0 people have joined", LotteryJoinPolicy.spotsText(lottery()))
-        val w = lottery().copy(registrationStartDate = Date(0), registrationEndDate = Date(0))
-        assertTrue(LotteryJoinPolicy.registrationText(w).startsWith("Registration: "))
     }
 
     // --- InMemoryLotteryJoinRepository ---
 
-    private fun repo(vararg lotteries: Waitlist) = InMemoryLotteryJoinRepository(lotteries.toList(), clock = { now })
+    private fun repo(vararg lotteries: Waitlist) =
+        InMemoryLotteryJoinRepository(lotteries.toList(), campsiteOwners = mapOf("site1" to "owner", "site2" to "me"), clock = { now })
 
-    private fun join(repo: InMemoryLotteryJoinRepository, id: String = "w1", user: String = "me"): Exception? {
+    /** Joins and checks exactly one callback ran exactly once. */
+    private fun join(repo: InMemoryLotteryJoinRepository, id: String = "w1", user: String = "me", site: String = "site1"): Exception? {
+        var calls = 0
         var error: Exception? = null
-        var ok = false
-        repo.join(id, user, onSuccess = { ok = true }, onFailure = { error = it })
-        assertTrue("exactly one callback should run", ok != (error != null))
+        repo.join(id, site, user, onSuccess = { calls++ }, onFailure = { calls++; error = it })
+        assertEquals("callbacks", 1, calls)
         return error
     }
 
     private fun leave(repo: InMemoryLotteryJoinRepository, id: String = "w1", user: String = "me"): Exception? {
+        var calls = 0
         var error: Exception? = null
-        var ok = false
-        repo.leave(id, user, onSuccess = { ok = true }, onFailure = { error = it })
-        assertTrue("exactly one callback should run", ok != (error != null))
+        repo.leave(id, user, onSuccess = { calls++ }, onFailure = { calls++; error = it })
+        assertEquals("callbacks", 1, calls)
         return error
     }
 
@@ -146,9 +185,8 @@ class LotteryJoinTest {
 
     @Test
     fun joiningUsesTheStoredLotteryNotWhatTheScreenShowed() {
-        // The screen saw an open lottery, but the draw happened since.
         val repo = repo(lottery())
-        repo.put(lottery(drawn = true))
+        repo.put(lottery(drawn = true)) // drawn after the screen loaded
         assertEquals("The winners of this lottery have already been drawn.", join(repo)?.message)
     }
 
@@ -160,10 +198,31 @@ class LotteryJoinTest {
     }
 
     @Test
+    fun theCampsiteOwnerCantJoinAnOwnerlessLotteryForTheirCampsite() {
+        val repo = repo(lottery(owner = "", campsites = listOf("site2")))
+        assertEquals("You run this lottery, so you can't enter it.", join(repo, site = "site2")?.message)
+    }
+
+    @Test
+    fun aDeletedCampsiteOrALotteryForAnotherCampsiteIsRefused() {
+        val repo = repo(lottery())
+        assertEquals("This campsite no longer exists.", join(repo, site = "deleted")?.message)
+        assertEquals("This lottery isn't for this campsite.", join(repo, site = "site2")?.message)
+        assertTrue(repo.peek("w1")!!.joinedEntrantIds.isEmpty())
+    }
+
+    @Test
     fun closedOrUpcomingLotteriesCantBeJoined() {
         val repo = repo(lottery(id = "closed", opensInDays = -5, closesInDays = -1), lottery(id = "soon", opensInDays = 2))
         assertEquals("Registration for this lottery has closed.", join(repo, id = "closed")?.message)
         assertTrue(join(repo, id = "soon")!!.message!!.startsWith("Registration opens "))
+    }
+
+    @Test
+    fun youCanLeaveAfterRegistrationClosesUntilTheDraw() {
+        val repo = repo(lottery(opensInDays = -9, closesInDays = -1, joined = listOf("me")))
+        assertNull(leave(repo))
+        assertTrue(repo.peek("w1")!!.joinedEntrantIds.isEmpty())
     }
 
     @Test

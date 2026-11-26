@@ -20,17 +20,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -144,6 +148,7 @@ fun CampsiteInfoScreen(
 
     var openWaitlists by remember { mutableStateOf<List<Waitlist>>(emptyList()) }
     var waitlistsError by remember { mutableStateOf<String?>(null) }
+    var unreadableWaitlists by remember { mutableStateOf(0) }
     val lotteryJoinRepository = remember { FirestoreLotteryJoinRepository() }
 
     var isUploadingImage by remember { mutableStateOf(false) }
@@ -252,9 +257,13 @@ fun CampsiteInfoScreen(
                 }
                 waitlistsError = null
                 // bookingWaitlist() reads both spellings of the drawn flag in stored lotteries.
-                openWaitlists = snapshot?.documents?.mapNotNull { doc ->
-                    runCatching { doc.bookingWaitlist() }.getOrNull()
-                }.orEmpty()
+                val docs = snapshot?.documents.orEmpty()
+                openWaitlists = docs.mapNotNull { doc ->
+                    runCatching { doc.bookingWaitlist() }
+                        .onFailure { Log.e("CampsiteInfo", "Unreadable lottery ${doc.id}", it) }
+                        .getOrNull()
+                }
+                unreadableWaitlists = docs.size - openWaitlists.size
             }
         onDispose { listener.remove() }
     }
@@ -334,260 +343,269 @@ fun CampsiteInfoScreen(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(16.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Absolute.Left,
+    // Scrolls when the content is taller than the screen (e.g. in landscape), while the
+    // minimum height keeps the action buttons at the bottom when there's room.
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = maxHeight)
+                .padding(16.dp),
         ) {
-            Button(
-                onClick = { navController.popBackStack() },
-                shape = RectangleShape,
-                modifier = Modifier.testTag("toBackButton"),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Absolute.Left,
             ) {
-                Text("Back")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        when {
-            isLoading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            campsite == null -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Campsite details not found.", fontSize = 20.sp)
-                }
-            }
-            else -> {
-                val imageUrl = campsite!!.imageUrl
-                val decodedBitmap = remember(imageUrl) { decodeCampsiteImageBitmap(imageUrl) }
-
-                if (!imageUrl.isNullOrBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(190.dp)
-                            .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
-                            .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
-                            .testTag("campsiteImageContainer"),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (decodedBitmap != null) {
-                            Image(
-                                bitmap = decodedBitmap,
-                                contentDescription = "Photo of ${campsite!!.name}",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .testTag("campsiteImage"),
-                            )
-                        } else {
-                            Text(
-                                text = "Image stored: $imageUrl",
-                                fontSize = 13.sp,
-                                modifier = Modifier
-                                    .padding(12.dp)
-                                    .testTag("campsiteImageFallback"),
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                Text(text = campsite!!.name, fontSize = 40.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Location: ${campsite!!.address}", fontSize = 18.sp)
-                Text(
-                    text = "Max Occupancy: ${campsite!!.maxOccupancy} | Price: $${campsite!!.pricePerNight}/night",
-                    fontSize = 16.sp,
-                )
-                Text(
-                    text = "Rating: ${RatingPolicy.summary(RatingPolicy.totalsOf(campsite!!))}",
-                    fontSize = 16.sp,
-                    modifier = Modifier.testTag("campsiteRatingText"),
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = campsite!!.description, fontSize = 18.sp)
-                if (campsite!!.rules.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Rules: ${campsite!!.rules}", fontSize = 14.sp)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Column(modifier = Modifier.fillMaxWidth()) {
-            imageUploadError?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, fontSize = 14.sp, modifier = Modifier.testTag("imageUploadErrorText"))
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-            imageUploadMessage?.let {
-                Text(it, fontSize = 14.sp, modifier = Modifier.testTag("imageUploadMessageText"))
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-            ratingError?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-            ratingMessage?.let {
-                Text(it, fontSize = 14.sp, modifier = Modifier.testTag("ratingMessageText"))
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-            messageSentNotice?.let {
-                Text(it, fontSize = 14.sp, modifier = Modifier.testTag("messageSentText"))
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            if (isOwnerOfSite) {
-                Column(
-                    modifier = Modifier.weight(1f)   // takes the remaining space
+                Button(
+                    onClick = { navController.popBackStack() },
+                    shape = RectangleShape,
+                    modifier = Modifier.testTag("toBackButton"),
                 ) {
-                    if (!reservedDates.isEmpty()) {
+                    Text("Back")
+                }
+            }
 
-                        Text("Reserved Dates", fontSize = 24.sp)
+            Spacer(modifier = Modifier.height(16.dp))
 
-                        LazyColumn(
+            when {
+                isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                campsite == null -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Campsite details not found.", fontSize = 20.sp)
+                    }
+                }
+                else -> {
+                    val imageUrl = campsite!!.imageUrl
+                    val decodedBitmap = remember(imageUrl) { decodeCampsiteImageBitmap(imageUrl) }
+
+                    if (!imageUrl.isNullOrBlank()) {
+                        Box(
                             modifier = Modifier
-                                .padding(5.dp)
-                                .fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                .fillMaxWidth()
+                                .height(190.dp)
+                                .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
+                                .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
+                                .testTag("campsiteImageContainer"),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            items(reservedDates) { date ->
-                                Card(modifier = Modifier.fillMaxWidth()) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                                    ) { Text(date.toString(), fontSize = 20.sp) }
+                            if (decodedBitmap != null) {
+                                Image(
+                                    bitmap = decodedBitmap,
+                                    contentDescription = "Photo of ${campsite!!.name}",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .testTag("campsiteImage"),
+                                )
+                            } else {
+                                Text(
+                                    text = "Image stored: $imageUrl",
+                                    fontSize = 13.sp,
+                                    modifier = Modifier
+                                        .padding(12.dp)
+                                        .testTag("campsiteImageFallback"),
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    Text(text = campsite!!.name, fontSize = 40.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "Location: ${campsite!!.address}", fontSize = 18.sp)
+                    Text(
+                        text = "Max Occupancy: ${campsite!!.maxOccupancy} | Price: $${campsite!!.pricePerNight}/night",
+                        fontSize = 16.sp,
+                    )
+                    Text(
+                        text = "Rating: ${RatingPolicy.summary(RatingPolicy.totalsOf(campsite!!))}",
+                        fontSize = 16.sp,
+                        modifier = Modifier.testTag("campsiteRatingText"),
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = campsite!!.description, fontSize = 18.sp)
+                    if (campsite!!.rules.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "Rules: ${campsite!!.rules}", fontSize = 14.sp)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                imageUploadError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, fontSize = 14.sp, modifier = Modifier.testTag("imageUploadErrorText"))
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                imageUploadMessage?.let {
+                    Text(it, fontSize = 14.sp, modifier = Modifier.testTag("imageUploadMessageText"))
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                ratingError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                ratingMessage?.let {
+                    Text(it, fontSize = 14.sp, modifier = Modifier.testTag("ratingMessageText"))
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                messageSentNotice?.let {
+                    Text(it, fontSize = 14.sp, modifier = Modifier.testTag("messageSentText"))
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                if (isOwnerOfSite) {
+                    Column(
+                        modifier = Modifier.weight(1f)   // takes the remaining space
+                    ) {
+                        if (!reservedDates.isEmpty()) {
+
+                            Text("Reserved Dates", fontSize = 24.sp)
+
+                            LazyColumn(
+                                modifier = Modifier
+                                    .padding(5.dp)
+                                    .fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(reservedDates) { date ->
+                                    Card(modifier = Modifier.fillMaxWidth()) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                        ) { Text(date.toString(), fontSize = 20.sp) }
+                                    }
                                 }
                             }
                         }
-                    }
-                    else {
+                        else {
 
-                        Text("No Dates Reserved", fontSize = 24.sp)
+                            Text("No Dates Reserved", fontSize = 24.sp)
 
-                    }
-                }
-            }
-
-            if (canEdit) {
-                Button(
-                    onClick = { navController.navigate("registerCampsite/$campsiteId") },
-                    shape = RectangleShape,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Edit Campsite Details")
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = {
-                        imagePickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
-                    enabled = !isUploadingImage,
-                    shape = RectangleShape,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("uploadImageButton"),
-                ) {
-                    Text(if (isUploadingImage) "Uploading Image..." else "Upload Image")
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = { showQrDialog = true },
-                    shape = RectangleShape,
-                    modifier = Modifier.fillMaxWidth().testTag("showQrCodeButton"),
-                ) {
-                    Text("Show QR Code")
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            if (canDelete) {
-                Button(
-                    onClick = {
-                        FirebaseFirestore.getInstance()
-                            .collection("campsites")
-                            .document(campsiteId)
-                            .delete()
-                            .addOnSuccessListener { navController.popBackStack() }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                    shape = RectangleShape,
-                    modifier = Modifier.fillMaxWidth().testTag("deleteCampsiteButton"),
-                ) {
-                    Text("Delete Campsite", color = Color.White)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            if (campsite != null) {
-                Button(
-                    onClick = { navController.navigate("campsiteReviews/$campsiteId") },
-                    shape = RectangleShape,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("toReviewsButton"),
-                ) {
-                    Text("Reviews")
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            if (canRate) {
-                Button(
-                    onClick = { showRateDialog = true },
-                    enabled = !isSubmittingRating,
-                    shape = RectangleShape,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("rateCampsiteButton"),
-                ) {
-                    Text(
-                        when {
-                            isSubmittingRating -> "Saving rating..."
-                            myRating != null -> "Change My Rating ($myRating ★)"
-                            else -> "Rate Campsite"
                         }
+                    }
+                }
+
+                if (canEdit) {
+                    Button(
+                        onClick = { navController.navigate("registerCampsite/$campsiteId") },
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Edit Campsite Details")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            imagePickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        enabled = !isUploadingImage,
+                        shape = RectangleShape,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("uploadImageButton"),
+                    ) {
+                        Text(if (isUploadingImage) "Uploading Image..." else "Upload Image")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { showQrDialog = true },
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().testTag("showQrCodeButton"),
+                    ) {
+                        Text("Show QR Code")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (canDelete) {
+                    Button(
+                        onClick = {
+                            FirebaseFirestore.getInstance()
+                                .collection("campsites")
+                                .document(campsiteId)
+                                .delete()
+                                .addOnSuccessListener { navController.popBackStack() }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().testTag("deleteCampsiteButton"),
+                    ) {
+                        Text("Delete Campsite", color = Color.White)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (campsite != null) {
+                    Button(
+                        onClick = { navController.navigate("campsiteReviews/$campsiteId") },
+                        shape = RectangleShape,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("toReviewsButton"),
+                    ) {
+                        Text("Reviews")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (canRate) {
+                    Button(
+                        onClick = { showRateDialog = true },
+                        enabled = !isSubmittingRating,
+                        shape = RectangleShape,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("rateCampsiteButton"),
+                    ) {
+                        Text(
+                            when {
+                                isSubmittingRating -> "Saving rating..."
+                                myRating != null -> "Change My Rating ($myRating ★)"
+                                else -> "Rate Campsite"
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (!isOwnerOfSite && campsite != null && campsite!!.ownerId.isNotBlank()) {
+                    Button(
+                        onClick = { showMessageOwnerDialog = true },
+                        shape = RectangleShape,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("messageOwnerButton"),
+                    ) {
+                        Text("Message Owner")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Join or leave this campsite's active lottery (US 1.6), once the campsite
+                // has loaded so its owner is known and a deleted campsite offers nothing.
+                campsite?.let { site ->
+                    LotteryJoinSection(
+                        lotteries = openWaitlists,
+                        campsiteId = campsiteId,
+                        campsiteOwnerId = site.ownerId,
+                        userId = deviceId,
+                        repository = lotteryJoinRepository,
+                        loadError = waitlistsError,
+                        unreadableCount = unreadableWaitlists,
                     )
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
             }
-
-            if (!isOwnerOfSite && campsite != null && campsite!!.ownerId.isNotBlank()) {
-                Button(
-                    onClick = { showMessageOwnerDialog = true },
-                    shape = RectangleShape,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("messageOwnerButton"),
-                ) {
-                    Text("Message Owner")
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Join or leave this campsite's active lottery (US 1.6).
-            LotteryJoinSection(
-                lotteries = openWaitlists,
-                userId = deviceId,
-                campsiteOwnerId = campsite?.ownerId,
-                repository = lotteryJoinRepository,
-                loadError = waitlistsError,
-            )
         }
     }
 }

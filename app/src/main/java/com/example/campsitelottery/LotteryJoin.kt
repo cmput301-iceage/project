@@ -3,10 +3,12 @@
  * Purpose: Joining and leaving a campsite's active lottery from the campsite details screen (US 1.6).
  * Role / Design Pattern: Pure policy object, Repository Pattern interface with Firestore and in-memory
  *   implementations, and the Composable section shown on the details screen.
- * Outstanding Issues: Client-side checks only; Firestore security rules should enforce them too.
+ * Outstanding Issues: Client-side checks only; Firestore security rules should enforce them too. The
+ *   registration cutoff uses the device clock.
  */
 package com.example.campsitelottery
 
+import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,9 +30,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 /** Where a user stands with one lottery. */
 enum class JoinStatus {
@@ -41,7 +46,7 @@ enum class JoinStatus {
     OWN_LOTTERY,
     /** Registration hasn't started yet. */
     NOT_OPEN_YET,
-    /** Registration has ended, or the lottery has no registration dates. */
+    /** Registration has ended, or the lottery's registration dates are missing or invalid. */
     CLOSED,
     /** The waitlist has no space left. */
     FULL,
@@ -53,9 +58,10 @@ enum class JoinStatus {
 object LotteryJoinPolicy {
 
     /**
-     * Where [userId] stands with [lottery] at time [now]. [campsiteOwnerId] is the
-     * owner of the campsite being viewed, who also can't enter, even when the
-     * lottery was set up without an owner.
+     * Where [userId] stands with [lottery] at time [now]. Registration is open from
+     * its start (inclusive) to its end (exclusive). [campsiteOwnerId] is the owner of
+     * the campsite being viewed, who also can't enter, even when the lottery was set
+     * up without an owner.
      */
     fun status(lottery: Waitlist, userId: String, now: Date, campsiteOwnerId: String? = null): JoinStatus {
         val start = lottery.registrationStartDate
@@ -63,8 +69,8 @@ object LotteryJoinPolicy {
         return when {
             lottery.isDrawn -> JoinStatus.DRAWN
             userId in lottery.joinedEntrantIds -> JoinStatus.JOINED
-            userId.isNotBlank() && (userId == lottery.ownerId || userId == campsiteOwnerId) -> JoinStatus.OWN_LOTTERY
-            start == null || end == null -> JoinStatus.CLOSED
+            isOwner(lottery, userId, campsiteOwnerId) -> JoinStatus.OWN_LOTTERY
+            start == null || end == null || !end.after(start) -> JoinStatus.CLOSED
             now.before(start) -> JoinStatus.NOT_OPEN_YET
             !now.before(end) -> JoinStatus.CLOSED
             lottery.isFull() -> JoinStatus.FULL
@@ -72,29 +78,40 @@ object LotteryJoinPolicy {
         }
     }
 
+    private fun isOwner(lottery: Waitlist, userId: String, campsiteOwnerId: String?) =
+        userId.isNotBlank() && (userId == lottery.ownerId || userId == campsiteOwnerId)
+
     /**
-     * The lottery to show on a campsite's details screen, in order of preference:
-     * one the user is on and can still leave, one they can join, one with open
-     * registration (full), then the next one to open. Lotteries that have closed
-     * or been drawn aren't shown.
+     * The lotteries to show on a campsite's details screen:
+     * - every one the user is on and can still leave (even if registration has closed), then
+     * - the best other one: one they can join (closing soonest first), one that's open
+     *   but full, the user's own open lottery, or the next one to open.
+     * Lotteries that have closed or been drawn aren't shown otherwise.
      */
-    fun lotteryToShow(lotteries: List<Waitlist>, userId: String, now: Date, campsiteOwnerId: String? = null): Waitlist? {
-        fun withStatus(vararg wanted: JoinStatus) =
-            lotteries.filter { status(it, userId, now, campsiteOwnerId) in wanted }
-        return withStatus(JoinStatus.JOINED).firstOrNull()
-            ?: withStatus(JoinStatus.CAN_JOIN).minByOrNull { it.registrationEndDate?.time ?: Long.MAX_VALUE }
-            ?: withStatus(JoinStatus.FULL).firstOrNull()
-            ?: lotteries.filter { isOpenForRegistration(it, now) && status(it, userId, now, campsiteOwnerId) == JoinStatus.OWN_LOTTERY }.firstOrNull()
-            ?: withStatus(JoinStatus.NOT_OPEN_YET).minByOrNull { it.registrationStartDate?.time ?: Long.MAX_VALUE }
+    fun lotteriesToShow(lotteries: List<Waitlist>, userId: String, now: Date, campsiteOwnerId: String? = null): List<Waitlist> {
+        fun statusOf(w: Waitlist) = status(w, userId, now, campsiteOwnerId)
+        val joined = lotteries.filter { statusOf(it) == JoinStatus.JOINED }
+        val others = lotteries.filter { statusOf(it) != JoinStatus.JOINED }
+        val other = others.filter { statusOf(it) == JoinStatus.CAN_JOIN }.minByOrNull { it.registrationEndDate?.time ?: Long.MAX_VALUE }
+            ?: others.firstOrNull { statusOf(it) == JoinStatus.FULL }
+            ?: others.firstOrNull { statusOf(it) == JoinStatus.OWN_LOTTERY && isRegistrationOpen(it, now) }
+            ?: others.filter { statusOf(it) == JoinStatus.NOT_OPEN_YET }.minByOrNull { it.registrationStartDate?.time ?: Long.MAX_VALUE }
+        return joined + listOfNotNull(other)
     }
 
-    private fun isOpenForRegistration(lottery: Waitlist, now: Date): Boolean {
+    private fun isRegistrationOpen(lottery: Waitlist, now: Date): Boolean {
         val start = lottery.registrationStartDate ?: return false
         val end = lottery.registrationEndDate ?: return false
-        return !lottery.isDrawn && !now.before(start) && now.before(end)
+        return !lottery.isDrawn && end.after(start) && !now.before(start) && now.before(end)
     }
 
-    /** What to tell the user about [status]; null when the Join or Leave button says enough. */
+    /** The next registration start or end after [now] among [lotteries], when what's shown may change. */
+    fun nextChange(lotteries: List<Waitlist>, now: Date): Date? =
+        lotteries.flatMap { listOfNotNull(it.registrationStartDate, it.registrationEndDate) }
+            .filter { it.after(now) }
+            .minOrNull()
+
+    /** What to tell the user about [status]; null when the Join button says enough. */
     fun explanation(status: JoinStatus, lottery: Waitlist): String? = when (status) {
         JoinStatus.CAN_JOIN -> null
         JoinStatus.JOINED -> "You're on this lottery's waitlist."
@@ -106,8 +123,8 @@ object LotteryJoinPolicy {
     }
 
     /** @throws IllegalStateException with a message for the user if [userId] can't join [lottery] now. */
-    fun requireCanJoin(lottery: Waitlist, userId: String, now: Date) {
-        val status = status(lottery, userId, now)
+    fun requireCanJoin(lottery: Waitlist, userId: String, now: Date, campsiteOwnerId: String? = null) {
+        val status = status(lottery, userId, now, campsiteOwnerId)
         check(status == JoinStatus.CAN_JOIN) {
             when (status) {
                 JoinStatus.JOINED -> "You're already on this lottery's waitlist."
@@ -133,12 +150,31 @@ object LotteryJoinPolicy {
         }
     }
 
-    /** Registration window, e.g. "Registration: Nov 20 – Nov 30, 2026". */
-    fun registrationText(lottery: Waitlist): String =
-        "Registration: ${formatDate(lottery.registrationStartDate, withYear = false)} – ${formatDate(lottery.registrationEndDate)}"
+    /**
+     * Registration window, e.g. "Registration: Nov 20 – Nov 30, 2026". The start date
+     * gets its own year when it's in a different year from the end.
+     */
+    fun registrationText(lottery: Waitlist): String {
+        val start = lottery.registrationStartDate
+        val end = lottery.registrationEndDate
+        val sameYear = start != null && end != null && formatYear(start) == formatYear(end)
+        return "Registration: ${formatDate(start, withYear = !sameYear)} – ${formatDate(end)}"
+    }
 
-    private fun formatDate(date: Date?, withYear: Boolean = true): String =
-        date?.let { SimpleDateFormat(if (withYear) "MMM d, yyyy" else "MMM d", Locale.US).format(it) } ?: "?"
+    private fun formatYear(date: Date): String =
+        SimpleDateFormat("yyyy", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(date)
+
+    /**
+     * Lottery dates are stored as midnight UTC on the chosen day (see [dateISOFormat]),
+     * so they're shown in UTC too, like the owner's screens; otherwise devices west of
+     * UTC would show the day before.
+     */
+    fun formatDate(date: Date?, withYear: Boolean = true): String =
+        date?.let {
+            SimpleDateFormat(if (withYear) "MMM d, yyyy" else "MMM d", Locale.US)
+                .apply { timeZone = TimeZone.getTimeZone("UTC") }
+                .format(it)
+        } ?: "?"
 }
 
 /**
@@ -148,21 +184,22 @@ object LotteryJoinPolicy {
 interface LotteryJoinRepository {
 
     /**
-     * Adds [userId] to the waitlist of lottery [waitlistId], after checking, against
-     * the stored lottery, that [LotteryJoinPolicy.requireCanJoin] allows it.
+     * Adds [userId] to the waitlist of lottery [waitlistId] for campsite [campsiteId],
+     * after checking against the stored data that the campsite still exists, the
+     * lottery includes it, and [LotteryJoinPolicy.requireCanJoin] allows it.
      *
      * @param onSuccess receives the lottery as it was just before joining.
      */
-    fun join(waitlistId: String, userId: String, onSuccess: (Waitlist) -> Unit, onFailure: (Exception) -> Unit)
+    fun join(waitlistId: String, campsiteId: String, userId: String, onSuccess: (Waitlist) -> Unit, onFailure: (Exception) -> Unit)
 
     /** Removes [userId] from the waitlist of [waitlistId] if [LotteryJoinPolicy.requireCanLeave] allows it. */
     fun leave(waitlistId: String, userId: String, onSuccess: () -> Unit, onFailure: (Exception) -> Unit)
 }
 
 /**
- * Joins and leaves in a Firestore transaction, so the checks use the lottery as it is
- * stored at that moment: two people can't both take the last spot, and nobody can join
- * after registration closes or the draw happens, even if their screen is out of date.
+ * Joins and leaves in a Firestore transaction, so the checks use the lottery and campsite
+ * as they are stored at that moment: two people can't both take the last spot, and nobody
+ * can join after registration closes or the draw happens, even if their screen is out of date.
  */
 class FirestoreLotteryJoinRepository(
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance(),
@@ -171,15 +208,28 @@ class FirestoreLotteryJoinRepository(
 
     private fun lottery(waitlistId: String) = db.collection("waitlists").document(waitlistId)
 
-    override fun join(waitlistId: String, userId: String, onSuccess: (Waitlist) -> Unit, onFailure: (Exception) -> Unit) {
-        if (waitlistId.isBlank() || userId.isBlank()) return onFailure(IllegalArgumentException("Missing lottery or user."))
-        val ref = lottery(waitlistId)
+    override fun join(
+        waitlistId: String,
+        campsiteId: String,
+        userId: String,
+        onSuccess: (Waitlist) -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
+        if (waitlistId.isBlank() || campsiteId.isBlank() || userId.isBlank()) {
+            return onFailure(IllegalArgumentException("Missing lottery, campsite or user."))
+        }
+        val lotteryRef = lottery(waitlistId)
+        val campsiteRef = db.collection("campsites").document(campsiteId)
         db.runTransaction { tx ->
-            val doc = tx.get(ref)
-            check(doc.exists()) { "This lottery no longer exists." }
-            val lottery = doc.bookingWaitlist() ?: error("This lottery couldn't be read.")
-            LotteryJoinPolicy.requireCanJoin(lottery, userId, clock())
-            tx.update(ref, "joinedEntrantIds", FieldValue.arrayUnion(userId))
+            // Both reads come before the write, as Firestore transactions require.
+            val lotteryDoc = tx.get(lotteryRef)
+            val campsiteDoc = tx.get(campsiteRef)
+            check(lotteryDoc.exists()) { "This lottery no longer exists." }
+            check(campsiteDoc.exists()) { "This campsite no longer exists." }
+            val lottery = readLottery(lotteryDoc)
+            check(campsiteId in lottery.campsiteIds) { "This lottery isn't for this campsite." }
+            LotteryJoinPolicy.requireCanJoin(lottery, userId, clock(), campsiteDoc.getString("ownerId"))
+            tx.update(lotteryRef, "joinedEntrantIds", FieldValue.arrayUnion(userId))
             lottery
         }
             .addOnSuccessListener { onSuccess(it) }
@@ -192,21 +242,29 @@ class FirestoreLotteryJoinRepository(
         db.runTransaction { tx ->
             val doc = tx.get(ref)
             check(doc.exists()) { "This lottery no longer exists." }
-            val lottery = doc.bookingWaitlist() ?: error("This lottery couldn't be read.")
-            LotteryJoinPolicy.requireCanLeave(lottery, userId)
+            LotteryJoinPolicy.requireCanLeave(readLottery(doc), userId)
             tx.update(ref, "joinedEntrantIds", FieldValue.arrayRemove(userId))
         }
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener(onFailure)
     }
+
+    private fun readLottery(doc: com.google.firebase.firestore.DocumentSnapshot): Waitlist =
+        runCatching { doc.bookingWaitlist() }.getOrNull() ?: run {
+            Log.e("LotteryJoin", "Unreadable lottery ${doc.id}")
+            error("This lottery's details couldn't be read.")
+        }
 }
 
 /**
  * [LotteryJoinRepository] that keeps lotteries in memory, for previews and tests.
  * Callbacks run synchronously.
+ *
+ * @param campsiteOwners owner of each campsite that exists, keyed by campsite ID.
  */
 class InMemoryLotteryJoinRepository(
     lotteries: List<Waitlist> = emptyList(),
+    private val campsiteOwners: Map<String, String> = emptyMap(),
     private val clock: () -> Date = { Date() },
 ) : LotteryJoinRepository {
 
@@ -223,11 +281,19 @@ class InMemoryLotteryJoinRepository(
         stored[lottery.waitlistId] = lottery
     }
 
-    override fun join(waitlistId: String, userId: String, onSuccess: (Waitlist) -> Unit, onFailure: (Exception) -> Unit) {
+    override fun join(
+        waitlistId: String,
+        campsiteId: String,
+        userId: String,
+        onSuccess: (Waitlist) -> Unit,
+        onFailure: (Exception) -> Unit,
+    ) {
         failWith?.let { return onFailure(it) }
         val lottery = stored[waitlistId] ?: return onFailure(IllegalStateException("This lottery no longer exists."))
+        val owner = campsiteOwners[campsiteId] ?: return onFailure(IllegalStateException("This campsite no longer exists."))
         try {
-            LotteryJoinPolicy.requireCanJoin(lottery, userId, clock())
+            check(campsiteId in lottery.campsiteIds) { "This lottery isn't for this campsite." }
+            LotteryJoinPolicy.requireCanJoin(lottery, userId, clock(), owner)
         } catch (e: IllegalStateException) {
             return onFailure(e)
         }
@@ -251,33 +317,82 @@ class InMemoryLotteryJoinRepository(
 /**
  * The lottery part of a campsite's details screen (US 1.6): which lottery is running,
  * its registration window and spots, and a Join or Leave button, or why the user can't
- * join right now.
+ * join right now. Shows the lotteries the user is on and the best other one to join
+ * (see [LotteryJoinPolicy.lotteriesToShow]).
  *
  * @param lotteries every lottery that includes this campsite, kept up to date by the caller.
+ * @param campsiteId the campsite being viewed.
+ * @param campsiteOwnerId owner of that campsite; they can't enter.
  * @param userId the current user's device ID.
- * @param campsiteOwnerId owner of the campsite being viewed; they can't enter.
  * @param repository where joining and leaving are saved.
- * @param loadError shown instead of the lottery if the lotteries couldn't be loaded.
+ * @param loadError shown, with no Join or Leave buttons, if the lotteries couldn't be loaded.
+ * @param unreadableCount how many of the campsite's lotteries couldn't be read.
  * @param onJoined called after the user joins, with the lottery they joined.
  * @param now the current time.
  */
 @Composable
 fun LotteryJoinSection(
     lotteries: List<Waitlist>,
-    userId: String,
+    campsiteId: String,
     campsiteOwnerId: String?,
+    userId: String,
     repository: LotteryJoinRepository,
     loadError: String? = null,
+    unreadableCount: Int = 0,
     onJoined: (Waitlist) -> Unit = {},
     now: () -> Date = { Date() },
 ) {
-    var isSaving by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    // Lottery being joined or left right now, if any.
+    var savingId by remember { mutableStateOf<String?>(null) }
+    // Last result, with the lottery it's about, so it only shows under that lottery.
+    var feedback by remember { mutableStateOf<Triple<String, String, Boolean>?>(null) }
+    // Bumped when registration opens or closes, so what's shown is worked out again.
+    var tick by remember { mutableStateOf(0) }
 
-    val time = now()
-    val lottery = LotteryJoinPolicy.lotteryToShow(lotteries, userId, time, campsiteOwnerId)
-    val status = lottery?.let { LotteryJoinPolicy.status(it, userId, time, campsiteOwnerId) }
+    val time = remember(tick, lotteries) { now() }
+    val shown = LotteryJoinPolicy.lotteriesToShow(lotteries, userId, time, campsiteOwnerId)
+
+    LaunchedEffect(lotteries, tick) {
+        val next = LotteryJoinPolicy.nextChange(lotteries, time) ?: return@LaunchedEffect
+        delay((next.time - time.time).coerceAtLeast(0) + 500)
+        if (!now().before(next)) tick++
+    }
+
+    fun join(lottery: Waitlist) {
+        savingId = lottery.waitlistId
+        feedback = null
+        repository.join(
+            lottery.waitlistId,
+            campsiteId,
+            userId,
+            onSuccess = { joined ->
+                savingId = null
+                feedback = Triple(joined.waitlistId, "You joined ${joined.lotteryName.ifBlank { "the lottery" }}.", false)
+                onJoined(joined)
+            },
+            onFailure = {
+                savingId = null
+                feedback = Triple(lottery.waitlistId, it.message ?: "Couldn't join the lottery.", true)
+            },
+        )
+    }
+
+    fun leave(lottery: Waitlist) {
+        savingId = lottery.waitlistId
+        feedback = null
+        repository.leave(
+            lottery.waitlistId,
+            userId,
+            onSuccess = {
+                savingId = null
+                feedback = Triple(lottery.waitlistId, "You left the lottery.", false)
+            },
+            onFailure = {
+                savingId = null
+                feedback = Triple(lottery.waitlistId, it.message ?: "Couldn't leave the lottery.", true)
+            },
+        )
+    }
 
     Column(modifier = Modifier.fillMaxWidth().testTag("lotterySection")) {
         when {
@@ -285,84 +400,77 @@ fun LotteryJoinSection(
                 "Couldn't load this campsite's lotteries: $loadError",
                 color = MaterialTheme.colorScheme.error,
                 fontSize = 14.sp,
+                modifier = Modifier.testTag("lotteryLoadErrorText"),
             )
-            lottery == null -> Text(
-                "No lottery is open for this campsite right now.",
+            shown.isEmpty() -> Text(
+                if (unreadableCount > 0) "This campsite's lottery details couldn't be read."
+                else "No lottery is open for this campsite right now.",
                 fontSize = 14.sp,
                 modifier = Modifier.testTag("noLotteryText"),
             )
-            else -> {
-                Text(
-                    lottery.lotteryName.ifBlank { "Campsite lottery" },
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.testTag("lotteryName"),
+            else -> shown.forEachIndexed { index, lottery ->
+                if (index > 0) Spacer(modifier = Modifier.height(12.dp))
+                val status = LotteryJoinPolicy.status(lottery, userId, time, campsiteOwnerId)
+                LotteryEntry(
+                    lottery = lottery,
+                    status = status,
+                    feedback = feedback?.takeIf { it.first == lottery.waitlistId },
+                    isSaving = savingId == lottery.waitlistId,
+                    actionsEnabled = savingId == null,
+                    onJoin = { join(lottery) },
+                    onLeave = { leave(lottery) },
                 )
-                Text(LotteryJoinPolicy.registrationText(lottery), fontSize = 14.sp)
-                Text(LotteryJoinPolicy.spotsText(lottery), fontSize = 14.sp, modifier = Modifier.testTag("lotterySpots"))
-                LotteryJoinPolicy.explanation(status!!, lottery)?.let {
-                    Text(it, fontSize = 14.sp, modifier = Modifier.testTag("lotteryStatusText"))
-                }
             }
         }
+    }
+}
 
-        error?.let {
-            Text(it, color = MaterialTheme.colorScheme.error, fontSize = 14.sp, modifier = Modifier.testTag("joinErrorText"))
+/** One lottery: name, registration window, spots, status, and its Join or Leave button. */
+@Composable
+private fun LotteryEntry(
+    lottery: Waitlist,
+    status: JoinStatus,
+    feedback: Triple<String, String, Boolean>?,
+    isSaving: Boolean,
+    actionsEnabled: Boolean,
+    onJoin: () -> Unit,
+    onLeave: () -> Unit,
+) {
+    val id = lottery.waitlistId
+    Column(modifier = Modifier.fillMaxWidth().testTag("lottery_$id")) {
+        Text(
+            lottery.lotteryName.ifBlank { "Campsite lottery" },
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.testTag("lotteryName_$id"),
+        )
+        Text(LotteryJoinPolicy.registrationText(lottery), fontSize = 14.sp, modifier = Modifier.testTag("lotteryDates_$id"))
+        Text(LotteryJoinPolicy.spotsText(lottery), fontSize = 14.sp, modifier = Modifier.testTag("lotterySpots_$id"))
+        LotteryJoinPolicy.explanation(status, lottery)?.let {
+            Text(it, fontSize = 14.sp, modifier = Modifier.testTag("lotteryStatus_$id"))
         }
-        message?.let { Text(it, fontSize = 14.sp, modifier = Modifier.testTag("joinMessageText")) }
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (lottery != null && status == JoinStatus.CAN_JOIN) {
-            Button(
-                onClick = {
-                    isSaving = true
-                    error = null
-                    message = null
-                    repository.join(
-                        lottery.waitlistId,
-                        userId,
-                        onSuccess = { joined ->
-                            isSaving = false
-                            message = "You joined ${joined.lotteryName.ifBlank { "the lottery" }}."
-                            onJoined(joined)
-                        },
-                        onFailure = {
-                            isSaving = false
-                            error = it.message ?: "Couldn't join the lottery."
-                        },
-                    )
-                },
-                enabled = !isSaving,
+        feedback?.let { (_, text, isError) ->
+            Text(
+                text,
+                fontSize = 14.sp,
+                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.testTag(if (isError) "joinError_$id" else "joinMessage_$id"),
+            )
+        }
+        when (status) {
+            JoinStatus.CAN_JOIN -> Button(
+                onClick = onJoin,
+                enabled = actionsEnabled,
                 shape = RectangleShape,
-                modifier = Modifier.fillMaxWidth().testTag("joinWaitlistButton"),
-            ) {
-                Text(if (isSaving) "Joining..." else "Join Lottery")
-            }
-        } else if (lottery != null && status == JoinStatus.JOINED) {
-            Button(
-                onClick = {
-                    isSaving = true
-                    error = null
-                    message = null
-                    repository.leave(
-                        lottery.waitlistId,
-                        userId,
-                        onSuccess = {
-                            isSaving = false
-                            message = "You left the lottery."
-                        },
-                        onFailure = {
-                            isSaving = false
-                            error = it.message ?: "Couldn't leave the lottery."
-                        },
-                    )
-                },
-                enabled = !isSaving,
+                modifier = Modifier.fillMaxWidth().testTag("joinWaitlistButton_$id"),
+            ) { Text(if (isSaving) "Joining..." else "Join Lottery") }
+            JoinStatus.JOINED -> Button(
+                onClick = onLeave,
+                enabled = actionsEnabled,
                 shape = RectangleShape,
-                modifier = Modifier.fillMaxWidth().testTag("leaveWaitlistButton"),
-            ) {
-                Text(if (isSaving) "Leaving..." else "Leave Lottery")
-            }
+                modifier = Modifier.fillMaxWidth().testTag("leaveWaitlistButton_$id"),
+            ) { Text(if (isSaving) "Leaving..." else "Leave Lottery") }
+            else -> Unit
         }
     }
 }

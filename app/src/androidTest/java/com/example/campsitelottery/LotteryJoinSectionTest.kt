@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -26,9 +27,11 @@ class LotteryJoinSectionTest {
     val composeRule = createComposeRule()
 
     private val day = 24L * 60 * 60 * 1000
-    private val now = Date(100 * day)
+    private val now = dateISOFormat().parse("2026-11-26")!!
 
     private fun lottery(
+        id: String = "w1",
+        name: String = "Summer Lottery",
         opensInDays: Long = -1,
         closesInDays: Long = 5,
         capacity: Int? = 10,
@@ -36,10 +39,10 @@ class LotteryJoinSectionTest {
         owner: String = "owner",
         drawn: Boolean = false,
     ) = Waitlist(
-        waitlistId = "w1",
+        waitlistId = id,
         campsiteIds = listOf("site1"),
         ownerId = owner,
-        lotteryName = "Summer Lottery",
+        lotteryName = name,
         registrationStartDate = Date(now.time + opensInDays * day),
         registrationEndDate = Date(now.time + closesInDays * day),
         maxWaitlistCapacity = capacity,
@@ -49,29 +52,44 @@ class LotteryJoinSectionTest {
 
     private lateinit var repo: InMemoryLotteryJoinRepository
     private val joinedLotteries = mutableListOf<String>()
+    /** Set to hold a join or leave until [release] is called. */
+    private var hold = false
+    private var held: (() -> Unit)? = null
+
+    private fun release() = composeRule.runOnIdle { held?.invoke(); held = null }
 
     /**
      * Shows the section. Like the real screen's Firestore listener, the list of
      * lotteries is refreshed from the repository after each join or leave.
      */
-    private fun show(vararg lotteries: Waitlist, user: String = "me", siteOwner: String = "owner", loadError: String? = null) {
-        repo = InMemoryLotteryJoinRepository(lotteries.toList(), clock = { now })
+    private fun show(
+        vararg lotteries: Waitlist,
+        user: String = "me",
+        siteOwner: String = "owner",
+        loadError: String? = null,
+        unreadable: Int = 0,
+    ) {
+        repo = InMemoryLotteryJoinRepository(lotteries.toList(), campsiteOwners = mapOf("site1" to siteOwner), clock = { now })
         composeRule.setContent {
             var shown by remember { mutableStateOf(lotteries.toList()) }
             val refreshing = remember {
                 object : LotteryJoinRepository {
-                    override fun join(waitlistId: String, userId: String, onSuccess: (Waitlist) -> Unit, onFailure: (Exception) -> Unit) =
-                        repo.join(waitlistId, userId, { onSuccess(it); shown = shown.map { w -> repo.peek(w.waitlistId) ?: w } }, onFailure)
+                    fun refresh() { shown = shown.map { w -> repo.peek(w.waitlistId) ?: w } }
+                    fun run(action: () -> Unit) = if (hold) held = action else action()
+                    override fun join(waitlistId: String, campsiteId: String, userId: String, onSuccess: (Waitlist) -> Unit, onFailure: (Exception) -> Unit) =
+                        run { repo.join(waitlistId, campsiteId, userId, { onSuccess(it); refresh() }, onFailure) }
                     override fun leave(waitlistId: String, userId: String, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) =
-                        repo.leave(waitlistId, userId, { onSuccess(); shown = shown.map { w -> repo.peek(w.waitlistId) ?: w } }, onFailure)
+                        run { repo.leave(waitlistId, userId, { onSuccess(); refresh() }, onFailure) }
                 }
             }
             LotteryJoinSection(
                 lotteries = shown,
-                userId = user,
+                campsiteId = "site1",
                 campsiteOwnerId = siteOwner,
+                userId = user,
                 repository = refreshing,
                 loadError = loadError,
+                unreadableCount = unreadable,
                 onJoined = { joinedLotteries += it.waitlistId },
                 now = { now },
             )
@@ -79,23 +97,24 @@ class LotteryJoinSectionTest {
     }
 
     @Test
-    fun showsTheLotteryAndJoinButton() {
+    fun showsTheLotteryWithUtcDatesAndAJoinButton() {
         show(lottery(joined = listOf("a", "b")))
-        composeRule.onNodeWithTag("lotteryName").assertTextEquals("Summer Lottery")
-        composeRule.onNodeWithTag("lotterySpots").assertTextEquals("2 of 10 spots taken")
-        composeRule.onNodeWithTag("joinWaitlistButton").assertTextEquals("Join Lottery")
-        composeRule.onNodeWithTag("leaveWaitlistButton").assertDoesNotExist()
+        composeRule.onNodeWithTag("lotteryName_w1").assertTextEquals("Summer Lottery")
+        composeRule.onNodeWithTag("lotteryDates_w1").assertTextEquals("Registration: Nov 25 – Dec 1, 2026")
+        composeRule.onNodeWithTag("lotterySpots_w1").assertTextEquals("2 of 10 spots taken")
+        composeRule.onNodeWithTag("joinWaitlistButton_w1").assertTextEquals("Join Lottery")
+        composeRule.onNodeWithTag("leaveWaitlistButton_w1").assertDoesNotExist()
     }
 
     @Test
     fun joiningSwitchesToLeaveAndUpdatesSpots() {
         show(lottery())
-        composeRule.onNodeWithTag("joinWaitlistButton").performClick()
+        composeRule.onNodeWithTag("joinWaitlistButton_w1").performClick()
 
-        composeRule.onNodeWithTag("joinMessageText").assertTextEquals("You joined Summer Lottery.")
-        composeRule.onNodeWithTag("leaveWaitlistButton").assertTextEquals("Leave Lottery")
-        composeRule.onNodeWithTag("lotterySpots").assertTextEquals("1 of 10 spots taken")
-        composeRule.onNodeWithTag("lotteryStatusText").assertTextEquals("You're on this lottery's waitlist.")
+        composeRule.onNodeWithTag("joinMessage_w1").assertTextEquals("You joined Summer Lottery.")
+        composeRule.onNodeWithTag("leaveWaitlistButton_w1").assertTextEquals("Leave Lottery")
+        composeRule.onNodeWithTag("lotterySpots_w1").assertTextEquals("1 of 10 spots taken")
+        composeRule.onNodeWithTag("lotteryStatus_w1").assertTextEquals("You're on this lottery's waitlist.")
         assertEquals(listOf("me"), repo.peek("w1")?.joinedEntrantIds)
         assertEquals(listOf("w1"), joinedLotteries)
     }
@@ -103,59 +122,91 @@ class LotteryJoinSectionTest {
     @Test
     fun leavingSwitchesBackToJoin() {
         show(lottery(joined = listOf("me")))
-        composeRule.onNodeWithTag("leaveWaitlistButton").performClick()
+        composeRule.onNodeWithTag("leaveWaitlistButton_w1").performClick()
 
-        composeRule.onNodeWithTag("joinMessageText").assertTextEquals("You left the lottery.")
-        composeRule.onNodeWithTag("joinWaitlistButton").assertExists()
+        composeRule.onNodeWithTag("joinMessage_w1").assertTextEquals("You left the lottery.")
+        composeRule.onNodeWithTag("joinWaitlistButton_w1").assertExists()
         assertEquals(emptyList<String>(), repo.peek("w1")?.joinedEntrantIds)
+    }
+
+    @Test
+    fun thePendingEntryAndTheOpenLotteryAreBothShown() {
+        show(
+            lottery(id = "old", name = "Old Lottery", opensInDays = -9, closesInDays = -1, joined = listOf("me")),
+            lottery(id = "new", name = "New Lottery"),
+        )
+        composeRule.onNodeWithTag("leaveWaitlistButton_old").assertExists()
+        composeRule.onNodeWithTag("joinWaitlistButton_new").assertExists()
+    }
+
+    @Test
+    fun whileJoiningEveryButtonIsDisabled() {
+        show(
+            lottery(id = "old", opensInDays = -9, closesInDays = -1, joined = listOf("me")),
+            lottery(id = "new"),
+        )
+        hold = true
+        composeRule.onNodeWithTag("joinWaitlistButton_new").performClick()
+        composeRule.onNodeWithTag("joinWaitlistButton_new").assertTextEquals("Joining...")
+        composeRule.onNodeWithTag("joinWaitlistButton_new").assertIsNotEnabled()
+        composeRule.onNodeWithTag("leaveWaitlistButton_old").assertIsNotEnabled()
+        release()
+        composeRule.onNodeWithTag("leaveWaitlistButton_new").assertExists()
+    }
+
+    @Test
+    fun anErrorShowsUnderTheLotteryItIsAbout() {
+        show(
+            lottery(id = "old", opensInDays = -9, closesInDays = -1, joined = listOf("me")),
+            lottery(id = "new", capacity = 1),
+        )
+        repo.put(lottery(id = "new", capacity = 1, joined = listOf("other"))) // last spot taken meanwhile
+        composeRule.onNodeWithTag("joinWaitlistButton_new").performClick()
+
+        composeRule.onNodeWithTag("joinError_new").assertTextEquals("This lottery's waitlist is full.")
+        composeRule.onNodeWithTag("joinError_old").assertDoesNotExist()
+        assertEquals(listOf("other"), repo.peek("new")?.joinedEntrantIds)
+        assertEquals(emptyList<String>(), joinedLotteries)
     }
 
     @Test
     fun theCampsiteOwnerCantJoin() {
         show(lottery(owner = ""), user = "boss", siteOwner = "boss")
-        composeRule.onNodeWithTag("lotteryStatusText").assertTextEquals("You run this lottery, so you can't enter it.")
-        composeRule.onNodeWithTag("joinWaitlistButton").assertDoesNotExist()
+        composeRule.onNodeWithTag("lotteryStatus_w1").assertTextEquals("You run this lottery, so you can't enter it.")
+        composeRule.onNodeWithTag("joinWaitlistButton_w1").assertDoesNotExist()
     }
 
     @Test
     fun aFullLotteryExplainsWhy() {
         show(lottery(capacity = 1, joined = listOf("a")))
-        composeRule.onNodeWithTag("lotteryStatusText").assertTextEquals("This lottery's waitlist is full.")
-        composeRule.onNodeWithTag("joinWaitlistButton").assertDoesNotExist()
+        composeRule.onNodeWithTag("lotteryStatus_w1").assertTextEquals("This lottery's waitlist is full.")
+        composeRule.onNodeWithTag("joinWaitlistButton_w1").assertDoesNotExist()
     }
 
     @Test
     fun anUpcomingLotterySaysWhenItOpens() {
         show(lottery(opensInDays = 3, closesInDays = 10))
-        composeRule.onNodeWithTag("lotteryStatusText").assertExists()
-        composeRule.onNodeWithTag("joinWaitlistButton").assertDoesNotExist()
+        composeRule.onNodeWithTag("lotteryStatus_w1").assertTextEquals("Registration opens Nov 29, 2026.")
+        composeRule.onNodeWithTag("joinWaitlistButton_w1").assertDoesNotExist()
     }
 
     @Test
-    fun noOpenLotteryShowsAMessageAndNoButton() {
+    fun noOpenLotteryShowsAMessageAndNoButtons() {
         show(lottery(drawn = true))
         composeRule.onNodeWithTag("noLotteryText").assertTextEquals("No lottery is open for this campsite right now.")
-        composeRule.onNodeWithTag("joinWaitlistButton").assertDoesNotExist()
-        composeRule.onNodeWithTag("leaveWaitlistButton").assertDoesNotExist()
+        composeRule.onNodeWithTag("lottery_w1").assertDoesNotExist()
     }
 
     @Test
-    fun theLastSpotTakenMeanwhileShowsAnErrorAndDoesNotJoin() {
-        show(lottery(capacity = 1))
-        // Someone else takes the last spot after the screen loaded.
-        repo.put(lottery(capacity = 1, joined = listOf("other")))
-        composeRule.onNodeWithTag("joinWaitlistButton").performClick()
-
-        composeRule.onNodeWithTag("joinErrorText").assertTextEquals("This lottery's waitlist is full.")
-        assertEquals(listOf("other"), repo.peek("w1")?.joinedEntrantIds)
-        assertEquals(emptyList<String>(), joinedLotteries)
+    fun unreadableLotteriesAreReported() {
+        show(unreadable = 1)
+        composeRule.onNodeWithTag("noLotteryText").assertTextEquals("This campsite's lottery details couldn't be read.")
     }
 
     @Test
-    fun aLoadErrorIsShown() {
-        show(loadError = "offline")
-        composeRule.onNodeWithTag("lotterySection").assertExists()
-        composeRule.onNodeWithTag("noLotteryText").assertDoesNotExist()
-        composeRule.onNodeWithTag("joinWaitlistButton").assertDoesNotExist()
+    fun aLoadErrorHidesTheButtonsEvenWithLotteriesLoadedBefore() {
+        show(lottery(), loadError = "offline")
+        composeRule.onNodeWithTag("lotteryLoadErrorText").assertTextEquals("Couldn't load this campsite's lotteries: offline")
+        composeRule.onNodeWithTag("joinWaitlistButton_w1").assertDoesNotExist()
     }
 }
