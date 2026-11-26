@@ -124,7 +124,7 @@ class LotteryJoinSectionTest {
         show(lottery(joined = listOf("me")))
         composeRule.onNodeWithTag("leaveWaitlistButton_w1").performClick()
 
-        composeRule.onNodeWithTag("joinMessage_w1").assertTextEquals("You left the lottery.")
+        composeRule.onNodeWithTag("joinMessage_w1").assertTextEquals("You left Summer Lottery.")
         composeRule.onNodeWithTag("joinWaitlistButton_w1").assertExists()
         assertEquals(emptyList<String>(), repo.peek("w1")?.joinedEntrantIds)
     }
@@ -148,6 +148,7 @@ class LotteryJoinSectionTest {
         hold = true
         composeRule.onNodeWithTag("joinWaitlistButton_new").performClick()
         composeRule.onNodeWithTag("joinWaitlistButton_new").assertTextEquals("Joining...")
+        composeRule.onNodeWithTag("leaveWaitlistButton_old").assertTextEquals("Leave Lottery")
         composeRule.onNodeWithTag("joinWaitlistButton_new").assertIsNotEnabled()
         composeRule.onNodeWithTag("leaveWaitlistButton_old").assertIsNotEnabled()
         release()
@@ -198,9 +199,21 @@ class LotteryJoinSectionTest {
     }
 
     @Test
-    fun unreadableLotteriesAreReported() {
-        show(unreadable = 1)
-        composeRule.onNodeWithTag("noLotteryText").assertTextEquals("This campsite's lottery details couldn't be read.")
+    fun unreadableLotteriesAreReportedEvenWithOthersListed() {
+        show(lottery(), unreadable = 1)
+        composeRule.onNodeWithTag("joinWaitlistButton_w1").assertExists()
+        composeRule.onNodeWithTag("unreadableLotteriesText").assertTextEquals("Some of this campsite's lottery details couldn't be read.")
+        composeRule.onNodeWithTag("noLotteryText").assertDoesNotExist()
+    }
+
+    @Test
+    fun leavingAClosedLotteryStillShowsTheResultAfterItsRowGoes() {
+        // Registration closed, not drawn: shown only while the user is on it.
+        show(lottery(name = "Old Lottery", opensInDays = -9, closesInDays = -1, joined = listOf("me")))
+        composeRule.onNodeWithTag("leaveWaitlistButton_w1").performClick()
+
+        composeRule.onNodeWithTag("lottery_w1").assertDoesNotExist()
+        composeRule.onNodeWithTag("joinMessage_w1").assertTextEquals("You left Old Lottery.")
     }
 
     @Test

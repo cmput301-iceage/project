@@ -342,54 +342,61 @@ fun LotteryJoinSection(
     onJoined: (Waitlist) -> Unit = {},
     now: () -> Date = { Date() },
 ) {
-    // Lottery being joined or left right now, if any.
-    var savingId by remember { mutableStateOf<String?>(null) }
-    // Last result, with the lottery it's about, so it only shows under that lottery.
-    var feedback by remember { mutableStateOf<Triple<String, String, Boolean>?>(null) }
-    // Bumped when registration opens or closes, so what's shown is worked out again.
-    var tick by remember { mutableStateOf(0) }
+    // The join or leave in progress, if any.
+    var saving by remember { mutableStateOf<LotteryAction?>(null) }
+    // Result of the last join or leave, shown under its lottery (or below, if that
+    // lottery is no longer listed, e.g. after leaving one whose registration closed).
+    var feedback by remember { mutableStateOf<LotteryFeedback?>(null) }
+    // The time used to decide what's shown; refreshed when the lotteries change and
+    // when registration opens or closes while the screen is open.
+    var time by remember { mutableStateOf(now()) }
 
-    val time = remember(tick, lotteries) { now() }
-    val shown = LotteryJoinPolicy.lotteriesToShow(lotteries, userId, time, campsiteOwnerId)
-
-    LaunchedEffect(lotteries, tick) {
-        val next = LotteryJoinPolicy.nextChange(lotteries, time) ?: return@LaunchedEffect
-        delay((next.time - time.time).coerceAtLeast(0) + 500)
-        if (!now().before(next)) tick++
+    LaunchedEffect(lotteries) {
+        time = now()
+        // Wakes at least once a minute, so a missed or late wake-up (the phone slept, or
+        // its clock changed) is caught up quickly.
+        while (true) {
+            val next = LotteryJoinPolicy.nextChange(lotteries, time) ?: break
+            delay((next.time - now().time + 500).coerceIn(1_000, 60_000))
+            val fresh = now()
+            if (!fresh.before(next) || fresh.before(time)) time = fresh
+        }
     }
 
+    val shown = LotteryJoinPolicy.lotteriesToShow(lotteries, userId, time, campsiteOwnerId)
+
     fun join(lottery: Waitlist) {
-        savingId = lottery.waitlistId
+        saving = LotteryAction(lottery.waitlistId, joining = true)
         feedback = null
         repository.join(
             lottery.waitlistId,
             campsiteId,
             userId,
             onSuccess = { joined ->
-                savingId = null
-                feedback = Triple(joined.waitlistId, "You joined ${joined.lotteryName.ifBlank { "the lottery" }}.", false)
+                saving = null
+                feedback = LotteryFeedback(lottery.waitlistId, "You joined ${joined.lotteryName.ifBlank { "the lottery" }}.", isError = false)
                 onJoined(joined)
             },
             onFailure = {
-                savingId = null
-                feedback = Triple(lottery.waitlistId, it.message ?: "Couldn't join the lottery.", true)
+                saving = null
+                feedback = LotteryFeedback(lottery.waitlistId, it.message ?: "Couldn't join the lottery.", isError = true)
             },
         )
     }
 
     fun leave(lottery: Waitlist) {
-        savingId = lottery.waitlistId
+        saving = LotteryAction(lottery.waitlistId, joining = false)
         feedback = null
         repository.leave(
             lottery.waitlistId,
             userId,
             onSuccess = {
-                savingId = null
-                feedback = Triple(lottery.waitlistId, "You left the lottery.", false)
+                saving = null
+                feedback = LotteryFeedback(lottery.waitlistId, "You left ${lottery.lotteryName.ifBlank { "the lottery" }}.", isError = false)
             },
             onFailure = {
-                savingId = null
-                feedback = Triple(lottery.waitlistId, it.message ?: "Couldn't leave the lottery.", true)
+                saving = null
+                feedback = LotteryFeedback(lottery.waitlistId, it.message ?: "Couldn't leave the lottery.", isError = true)
             },
         )
     }
@@ -402,27 +409,52 @@ fun LotteryJoinSection(
                 fontSize = 14.sp,
                 modifier = Modifier.testTag("lotteryLoadErrorText"),
             )
-            shown.isEmpty() -> Text(
-                if (unreadableCount > 0) "This campsite's lottery details couldn't be read."
-                else "No lottery is open for this campsite right now.",
+            shown.isEmpty() && unreadableCount == 0 -> Text(
+                "No lottery is open for this campsite right now.",
                 fontSize = 14.sp,
                 modifier = Modifier.testTag("noLotteryText"),
             )
             else -> shown.forEachIndexed { index, lottery ->
                 if (index > 0) Spacer(modifier = Modifier.height(12.dp))
-                val status = LotteryJoinPolicy.status(lottery, userId, time, campsiteOwnerId)
                 LotteryEntry(
                     lottery = lottery,
-                    status = status,
-                    feedback = feedback?.takeIf { it.first == lottery.waitlistId },
-                    isSaving = savingId == lottery.waitlistId,
-                    actionsEnabled = savingId == null,
+                    status = LotteryJoinPolicy.status(lottery, userId, time, campsiteOwnerId),
+                    feedback = feedback?.takeIf { it.waitlistId == lottery.waitlistId },
+                    saving = saving?.takeIf { it.waitlistId == lottery.waitlistId },
+                    actionsEnabled = saving == null,
                     onJoin = { join(lottery) },
                     onLeave = { leave(lottery) },
                 )
             }
         }
+        if (loadError == null && unreadableCount > 0) {
+            Text(
+                "Some of this campsite's lottery details couldn't be read.",
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 14.sp,
+                modifier = Modifier.testTag("unreadableLotteriesText"),
+            )
+        }
+        // A result for a lottery that's no longer listed still needs to be seen.
+        feedback?.takeIf { f -> shown.none { it.waitlistId == f.waitlistId } }?.let { FeedbackText(it) }
     }
+}
+
+/** A join or leave in progress for lottery [waitlistId]. */
+private data class LotteryAction(val waitlistId: String, val joining: Boolean)
+
+/** The result of a join or leave for lottery [waitlistId]. */
+private data class LotteryFeedback(val waitlistId: String, val text: String, val isError: Boolean)
+
+@Composable
+private fun FeedbackText(feedback: LotteryFeedback) {
+    val id = feedback.waitlistId
+    Text(
+        feedback.text,
+        fontSize = 14.sp,
+        color = if (feedback.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.testTag(if (feedback.isError) "joinError_$id" else "joinMessage_$id"),
+    )
 }
 
 /** One lottery: name, registration window, spots, status, and its Join or Leave button. */
@@ -430,13 +462,15 @@ fun LotteryJoinSection(
 private fun LotteryEntry(
     lottery: Waitlist,
     status: JoinStatus,
-    feedback: Triple<String, String, Boolean>?,
-    isSaving: Boolean,
+    feedback: LotteryFeedback?,
+    saving: LotteryAction?,
     actionsEnabled: Boolean,
     onJoin: () -> Unit,
     onLeave: () -> Unit,
 ) {
     val id = lottery.waitlistId
+    // While saving, the label follows the action started, not what the list shows now.
+    val savingLabel = saving?.let { if (it.joining) "Joining..." else "Leaving..." }
     Column(modifier = Modifier.fillMaxWidth().testTag("lottery_$id")) {
         Text(
             lottery.lotteryName.ifBlank { "Campsite lottery" },
@@ -449,27 +483,20 @@ private fun LotteryEntry(
         LotteryJoinPolicy.explanation(status, lottery)?.let {
             Text(it, fontSize = 14.sp, modifier = Modifier.testTag("lotteryStatus_$id"))
         }
-        feedback?.let { (_, text, isError) ->
-            Text(
-                text,
-                fontSize = 14.sp,
-                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.testTag(if (isError) "joinError_$id" else "joinMessage_$id"),
-            )
-        }
+        feedback?.let { FeedbackText(it) }
         when (status) {
             JoinStatus.CAN_JOIN -> Button(
                 onClick = onJoin,
                 enabled = actionsEnabled,
                 shape = RectangleShape,
                 modifier = Modifier.fillMaxWidth().testTag("joinWaitlistButton_$id"),
-            ) { Text(if (isSaving) "Joining..." else "Join Lottery") }
+            ) { Text(savingLabel ?: "Join Lottery") }
             JoinStatus.JOINED -> Button(
                 onClick = onLeave,
                 enabled = actionsEnabled,
                 shape = RectangleShape,
                 modifier = Modifier.fillMaxWidth().testTag("leaveWaitlistButton_$id"),
-            ) { Text(if (isSaving) "Leaving..." else "Leave Lottery") }
+            ) { Text(savingLabel ?: "Leave Lottery") }
             else -> Unit
         }
     }
