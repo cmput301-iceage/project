@@ -60,3 +60,8 @@ Use a separately identified test APK when testing on a phone with an existing ap
 installation, to avoid replacing its local data. Emulator tests cover competing
 winners, retries, decline/confirm races, legacy reservations, stale terms,
 cancelled claims, malformed records, and persisted confirmations.
+
+## AI Use
+
+Some User Stories and Documentation were created and completed with the help of AI. A detailed breakdown and citations 
+can found in doc/ai_use.txt

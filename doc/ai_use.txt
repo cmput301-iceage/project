@@ -1,0 +1,151 @@
+AI ASSISTANCE DISCLOSURE - CLAUDE
+=================================
+
+Tool:  Claude (Anthropic), model Claude Opus 5.5
+Date:  November 16-23, 2026
+Scope: One chat session, working directly on the files in this project folder.
+
+The user stories below were coded with Claude's help. Claude read the existing
+codebase and the Product Backlog wiki, proposed implementations, and wrote or
+edited the code, tests and documentation listed here. The team member running
+the session chose the features, reviewed the changes, made some edits of their
+own in Android Studio (noted below), and built and tested the app, since Claude
+could not compile or run the project.
+
+
+ESTIMATED AI USE
+----------------
+
+How comprehensively Claude was used:
+  - For the user stories listed below, Claude wrote nearly all of the code, tests
+    and documentation. The team member directed and reviewed the work, made small
+    edits, and ran the tests.
+  - Across the whole project, about 1,300 of the roughly 10,900 non-blank lines
+    of Kotlin (about 12%) come from Claude's work.
+
+How this was measured: on November 23, 2026, `git blame` counted the non-blank
+lines in each file that still come from the two commits containing Claude's work
+(325522c "Implemented User 11.1 and 13.1" and a4608f5 "Implemented User 12.1 and
+Camp Owner 2.1"). Those commits also include a few small edits the team member
+made by hand, so the figures slightly overstate Claude's share. The percentages
+below are each file's estimated AI-generated share, rounded; each file also
+states its own estimate at the top.
+
+
+USER STORIES CODED WITH CLAUDE'S HELP
+-------------------------------------
+
+User (13.1) - Give rating for a campsite
+  New files:
+    app/src/main/java/com/example/campsitelottery/RatingPolicy.kt                 ~65% (later extended by the team)
+    app/src/main/java/com/example/campsitelottery/RatingRepository.kt             ~60% (later extended by the team)
+    app/src/main/java/com/example/campsitelottery/FirestoreRatingRepository.kt    ~50% (later extended by the team)
+    app/src/main/java/com/example/campsitelottery/InMemoryRatingRepository.kt     ~60% (later extended by the team)
+    app/src/main/java/com/example/campsitelottery/RateCampsiteDialog.kt           ~100%
+    app/src/test/java/com/example/campsitelottery/RatingPolicyTest.kt                 ~100%
+    app/src/test/java/com/example/campsitelottery/InMemoryRatingRepositoryTest.kt     ~100%
+    app/src/androidTest/java/com/example/campsitelottery/RateCampsiteDialogTest.kt    ~100%
+  Modified files:
+    Campsite.kt            ~10%  - added ratingSum and ratingCount fields
+    CampsiteInfoScreen.kt  (see below) - shows the average rating, wires up the
+                             Rate Campsite button and dialog, hides it for the
+                             campsite's owner, preview uses InMemoryRatingRepository
+
+User (11.1) - See app policy and guidelines
+  New files:
+    app/src/main/java/com/example/campsitelottery/AppPolicyText.kt     ~100%
+    app/src/main/java/com/example/campsitelottery/AppPolicyDialog.kt   ~100%
+    app/src/test/java/com/example/campsitelottery/AppPolicyTextTest.kt     ~100%
+    app/src/androidTest/java/com/example/campsitelottery/ProfilePolicyTest.kt   ~100%
+  Modified files:
+    ProfileScreen.kt       ~2%   - the Policy and Guidelines button opens the dialog
+  Note: the policy wording in AppPolicyText.kt is a draft written by Claude and
+  should be reviewed by the team.
+
+User (12.1) - View campsite details by scanning QR code
+Camp Owner (2.1) - Generate unique QR code that link to campsite details
+  New files:
+    app/src/main/java/com/example/campsitelottery/CampsiteQrCode.kt     ~100%
+    app/src/main/java/com/example/campsitelottery/CampsiteQrDialog.kt   ~100%
+    app/src/main/java/com/example/campsitelottery/QrScanner.kt          ~100%
+    app/src/test/java/com/example/campsitelottery/CampsiteQrCodeTest.kt     ~100%
+    app/src/androidTest/java/com/example/campsitelottery/QrCodeTest.kt          ~100%
+  Modified files:
+    app/build.gradle.kts   ~4%   - added ZXing core and Google's code scanner
+    HomeScreen.kt          (see below) - Scan QR button that opens the scanned campsite
+    CampsiteInfoScreen.kt  (see below) - Show QR Code button for the campsite's owner
+  The QR code dialog also has a Save Image button that saves the code as a PNG
+  through Android's save dialog, so owners can use it in ads.
+
+  CampsiteInfoScreen.kt overall: ~25% (ratings and QR code changes together)
+  HomeScreen.kt overall:         ~10% (QR code and Profile button changes together)
+
+OTHER CHANGES MADE WITH CLAUDE'S HELP
+-------------------------------------
+
+RegisterCampsiteScreen.kt  ~10%
+  Editing a campsite now updates only the fields the form edits, instead of
+  replacing the whole document (which reset rating, amenities, location and image).
+
+LotteryScreen.kt  ~1%
+  Restored the missing `userId` declaration that was lost when the
+  ayaan/winner-booking branch was merged into main, which stopped the app from
+  compiling.
+
+HomeScreen.kt  (included in the ~10% above)
+  Profile button changed from a circle to a square text button, and the top
+  button row uses Arrangement.spacedBy so the buttons are only spaced apart when
+  more than one is shown and a lone Profile button stays centered.
+  The team member then set the button label to "Profile" and the spacing to 16dp.
+
+androidTest/.../EntrantScreenNavigationTest.kt (was CampsiteLotteryTest.kt)  ~20%
+  Renamed the file and class, and added documentation. The test code itself was
+  written by a team member; the team member later removed two of its tests.
+
+doc/ai_use.txt  ~100% of the Claude section
+  This disclosure file was written by Claude at the team member's request.
+
+How the code is labelled
+  Each file Claude created or changed states this at the top of its
+  documentation: who generated the code and documentation (Claude, Anthropic,
+  Claude Opus 5.5), what part of the file that covers when it's only part, and
+  the estimated AI-generated share of the file. app/build.gradle.kts states it
+  in the comment above the added dependencies.
+
+
+PROMPTS FROM THIS SESSION RELATING TO THE CODEBASE
+--------------------------------------------------
+
+The session's prompts about the codebase, condensed into the prompts below.
+Each one is written to produce the same result as the original prompts it
+replaces.
+
+"This folder contains a WIP Android campsite lottery app (Jetpack Compose and Firestore) with user stories at https://github.com/cmput301-iceage/project/wiki/Product-Backlog. Implement User (13.1) 'Give rating for a campsite' following the existing codebase's patterns: one rating per user per campsite, owners can't rate their own campsite, editing a campsite must not reset its rating, and an in-memory repository for tests and previews. Add unit and UI tests, fix any existing errors that stop the project from compiling, and show me the exact changes you made." prompt. Claude, Opus 5.5, Anthropic, 16 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"When running the app in Android Studio, which campsites are displayed and where do they come from? Also check the product backlog for any user stories that require uploading photos to a profile, campsite, or anything else." prompt. Claude, Opus 5.5, Anthropic, 16 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"In HomeScreen, make the button that goes to the profile screen a square button labelled 'Profile' like the other buttons, and space the top row so gaps only appear between buttons that are shown and the Profile button is centered when it's alone." prompt. Claude, Opus 5.5, Anthropic, 16 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Implement User (11.1) 'See app policy and guidelines': make the existing Policy and Guidelines button on the profile screen open a scrollable popup, keep the policy text in its own AppPolicyText.kt file drafted from what the app actually does, and add tests." prompt. Claude, Opus 5.5, Anthropic, 16 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Update the documentation in every file you created or changed to match the existing documentation style: state 'Documentation generated by Claude' only in each file's topmost documentation, remove exact user story references, and show me the exact changes." prompt. Claude, Opus 5.5, Anthropic, 16 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Apart from the code you generated, can you tell whether other files in this project were generated by AI?" prompt. Claude, Opus 5.5, Anthropic, 16 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Create a text file in the doc folder stating which user stories in this session were coded with your help, and record this session's prompts about the codebase in it." prompt. Claude, Opus 5.5, Anthropic, 16 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Write a simple pull request description of what we did so far in this session." prompt. Claude, Opus 5.5, Anthropic, 17 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Fix the layout of this GitHub wiki product backlog table so that it displays properly, and give it as text I can copy." prompt. Claude, Opus 5.5, Anthropic, 17 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Rename the CampsiteLotteryTest file in androidTest to EntrantScreenNavigationTest and add appropriate documentation." prompt. Claude, Opus 5.5, Anthropic, 17 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Plan how to implement User (3.1) and (3.2), notifications for winning and losing a lottery, where notifications are listed in NotificationScreen and shown as popups outside the app unless the user opted out, with a notification model stored in Firestore so an admin can view all notifications, and check whether Camp Owner (5.1) has been implemented." prompt. Claude, Opus 5.5, Anthropic, 17 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Implement User (12.1) 'View campsite details by scanning QR code' and Camp Owner (2.1) 'Generate unique QR code that link to campsite details': owners can show a QR code for their campsite, and a Scan QR button on the home screen opens the scanned campsite, using ZXing to draw the codes and Google's code scanner to read them, without a share button or opening campsites from the phone's camera app, and add tests." prompt. Claude, Opus 5.5, Anthropic, 17 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Check whether User (12.1) and Camp Owner (2.1) still work after pulling the latest main, add the Show QR Code button back to CampsiteInfoScreen on top of the team's current changes, remove all of the User (1.6) work, and check whether the QR code changes would conflict with the team's changes." prompt. Claude, Opus 5.5, Anthropic, 22 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Let campsite owners save their campsite's QR code as an image so they can use it in ads." prompt. Claude, Opus 5.5, Anthropic, 22 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL
+
+"Check whether our AI use in this project follows the course's AI policy, then estimate how comprehensively Claude was used in each file it created or modified and disclose that estimate at the top of each of those files and in doc/claude-ai-usage.txt." prompt. Claude, Opus 5.5, Anthropic, 23 Nov. 2026, https://claude.ai/code/session_01VqSN2Wo31mrrqLENxw3xpL

@@ -101,6 +101,9 @@ fun OwnerDashboardScreen(
             Button(onClick = { navController.navigate("ownerViewNotifications") }, shape = RectangleShape) {
                 Text("View Notifications")
             }
+            Button(onClick = { navController.navigate("messages") }, shape = RectangleShape) {
+                Text("Messages")
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

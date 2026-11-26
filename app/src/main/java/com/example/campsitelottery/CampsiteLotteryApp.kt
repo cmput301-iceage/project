@@ -123,6 +123,15 @@ fun CampsiteLotteryApp(
             val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
             CampsiteInfoScreen(navController, campsiteId, deviceId)
         }
+        composable("campsiteReviews/{campsiteId}") { backStackEntry ->
+            val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
+            CampsiteReviewsScreen(
+                navController,
+                campsiteId,
+                deviceId,
+                authorName = (userState as? UserState.Ready)?.user?.name.orEmpty(),
+            )
+        }
         composable("adminDashboard") {
             AdminDashboardScreen(
                 navController,
@@ -161,8 +170,19 @@ fun CampsiteLotteryApp(
                 userRepository = userRepository
             )}
         composable("adminCampsites") {AdminCampsitesScreen(navController)}
+        composable("adminCampsiteRatings/{campsiteId}") { backStackEntry ->
+            val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
+            AdminCampsiteRatingsScreen(navController, campsiteId)
+        }
+        composable("adminCampsiteReviews/{campsiteId}") { backStackEntry ->
+            val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
+            AdminCampsiteReviewsScreen(navController, campsiteId)
+        }
         composable("adminImages") {AdminImagesScreen(navController)}
-        composable("adminMessages") {AdminMessagesScreen(navController)}
+        composable("adminMessages") { AdminMessagesScreen(navController) }
+        composable("messages") {
+            MessagesInboxScreen(navController, userId = deviceId)
+        }
         composable("ownerViewReservationsScreen") {
             OwnerViewReservationsScreen(
                 navController,
@@ -180,7 +200,11 @@ fun CampsiteLotteryApp(
             )}
         composable("ownerViewReservationDetails/{reservationId}") { backStackEntry ->
             val reservationId = backStackEntry.arguments?.getString("reservationId")
-            OwnerViewReservationDetailScreen(navController, reservationId = reservationId)
+            OwnerViewReservationDetailScreen(
+                navController,
+                reservationId = reservationId,
+                deviceId = deviceId,
+            )
         }
         composable("ownerViewLotteryDetails/{waitlistId}") { backStackEntry ->
             val waitlistId = backStackEntry.arguments?.getString("waitlistId")

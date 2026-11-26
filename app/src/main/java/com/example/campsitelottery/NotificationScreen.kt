@@ -97,7 +97,7 @@ fun NotificationScreen(
                 onClick = { navController.popBackStack() },
                 shape = RectangleShape,
                 modifier = Modifier.testTag("toBackButton"),
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
+                colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = Color.White)
             ) {
                 Text("< Back")
             }

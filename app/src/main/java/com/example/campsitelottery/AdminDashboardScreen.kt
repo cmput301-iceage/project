@@ -79,7 +79,8 @@ fun AdminDashboardScreen(
                 onClick = { navController.popBackStack() },
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
+                    containerColor = buttonColor,
+                    contentColor = Color.White
                 ),
                 modifier = Modifier
                     .testTag("backButton")
@@ -110,7 +111,8 @@ fun AdminDashboardScreen(
                 onClick = { navController.navigate("adminProfiles") },
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
+                    containerColor = buttonColor,
+                    contentColor = Color.White
                 ),
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
@@ -131,7 +133,8 @@ fun AdminDashboardScreen(
                 onClick = { navController.navigate("adminCampsites") },
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
+                    containerColor = buttonColor,
+                    contentColor = Color.White
                 ),
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
@@ -152,7 +155,8 @@ fun AdminDashboardScreen(
                 onClick = { navController.navigate("adminImages") },
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
+                    containerColor = buttonColor,
+                    contentColor = Color.White
                 ),
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
@@ -173,7 +177,8 @@ fun AdminDashboardScreen(
                 onClick = { navController.navigate("adminMessages") },
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
+                    containerColor = buttonColor,
+                    contentColor = Color.White
                 ),
                 modifier = Modifier
                     .fillMaxWidth(0.8f)

@@ -146,7 +146,8 @@ fun OwnerViewLotteryDetails(
                 onClick = { navController.popBackStack() },
                 shape = RectangleShape,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor
+                    containerColor = buttonColor,
+                    contentColor = Color.White
                 )
             ) {
                 Text("< Back")
@@ -177,7 +178,8 @@ fun OwnerViewLotteryDetails(
                     onClick = { navController.navigate("editLottery/${waitlistId}") },
                     shape = RectangleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = buttonColor
+                        containerColor = buttonColor,
+                        contentColor = Color.White
                     )
                 ) {
                     Text("Edit")
