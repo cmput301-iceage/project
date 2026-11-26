@@ -196,23 +196,6 @@ fun HomeScreen(
             ) {
                 Text("Profile")
             }
-
-            /**
-             * NOTIFICATION TEST BUTTON
-             */
-            Button(onClick = {
-                if (userState is UserState.Ready) {
-                    NotificationHelper.sendNotification(
-                        1,
-                        "Download Complete",
-                        "Your file is ready!",
-                        userState
-                    )
-                }
-            }) {
-                Text("Send Notification")
-            }
-
         }
 
         Spacer(modifier = Modifier.height(16.dp))

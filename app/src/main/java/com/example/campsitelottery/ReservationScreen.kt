@@ -123,7 +123,10 @@ fun ReservationScreen(
                     "updatedAt" to Date(),
                 ),
             )
-            .addOnSuccessListener { cancellingId = null }
+            .addOnSuccessListener {
+                cancellingId = null
+                NotificationHelper.sendReservationCancelledByEntrantNotification(reservation)
+            }
             .addOnFailureListener {
                 cancellingId = null
                 errorMessage = it.message ?: "Could not cancel reservation"
