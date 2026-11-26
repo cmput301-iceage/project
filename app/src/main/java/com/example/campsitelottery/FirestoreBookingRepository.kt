@@ -198,8 +198,11 @@ class FirestoreBookingRepository(
     }
 }
 
-/** Accept both the original Kotlin boolean field name and existing `isDrawn` data. */
+/**
+ * Accept both the original Kotlin boolean field name and existing `isDrawn` data. A
+ * lottery counts as drawn if either field says so, since a draw may have set only one.
+ */
 internal fun DocumentSnapshot.bookingWaitlist(): Waitlist? =
     toObject(Waitlist::class.java)?.also {
-        it.isDrawn = getBoolean("isDrawn") ?: getBoolean("drawn") ?: false
+        it.isDrawn = getBoolean("isDrawn") == true || getBoolean("drawn") == true
     }
