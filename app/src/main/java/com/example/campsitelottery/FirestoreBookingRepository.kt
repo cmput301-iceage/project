@@ -94,7 +94,7 @@ class FirestoreBookingRepository(
                     val existing = transaction.get(reservationRef).toObject(Reservation::class.java)
                     if (existing != null) {
                         require(existing.entrantId == request.entrantId && existing.waitlistId == request.waitlistId)
-                        return@runTransaction existing
+                        return@runTransaction Pair(existing, false)
                     }
                     val site = transaction.get(siteRef).toObject(Campsite::class.java) ?: error("Campsite not found.")
                     val legacyNights = legacyRefs.flatMap { ref ->
@@ -145,10 +145,15 @@ class FirestoreBookingRepository(
                     transaction.set(reservationRef, reservation)
                     claims.forEach { transaction.set(it, mapOf("reservationId" to reservationRef.id)) }
                     transaction.update(waitlistRef, "bookedEntrantIds", FieldValue.arrayUnion(request.entrantId))
-                    reservation
+                    Pair(reservation, true)
                 }
             }
-        finish(task, onSuccess, onFailure)
+        finish(task, { (reservation, isNew) ->
+            if (isNew) {
+                NotificationHelper.sendReservationNotification(reservation)
+            }
+            onSuccess(reservation)
+        }, onFailure)
     }
 
     override fun decline(
@@ -160,15 +165,22 @@ class FirestoreBookingRepository(
         requireIds(waitlistId, entrantId)
         val ref = waitlists.document(waitlistId)
         val existingRef = reservations.document(BookingPolicy.reservationId(waitlistId, entrantId))
+        var targetWaitlist: Waitlist? = null
         val task = db.runTransaction { transaction ->
             val waitlist = transaction.get(ref).bookingWaitlist() ?: error("Lottery not found.")
             require(!transaction.get(existingRef).exists()) { "A booked reservation cannot be declined. Use reservation cancellation." }
             if (entrantId in waitlist.declinedEntrantIds) return@runTransaction Unit
             BookingPolicy.requireWinner(waitlist, entrantId)
             transaction.update(ref, "declinedEntrantIds", FieldValue.arrayUnion(entrantId))
+            targetWaitlist = waitlist
             Unit
         }
-        finish(task, { onSuccess() }, onFailure)
+        finish(task, {
+            targetWaitlist?.let { wl ->
+                NotificationHelper.sendInvitationDeclinedNotification(wl, entrantId)
+            }
+            onSuccess()
+        }, onFailure)
     }
 
     private fun <T> finish(task: Task<T>, onSuccess: (T) -> Unit, onFailure: (Exception) -> Unit) {

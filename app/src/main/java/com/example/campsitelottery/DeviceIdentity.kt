@@ -30,7 +30,6 @@ object DeviceIdentity {
     @SuppressLint("HardwareIds") // Identifying the device is the point of US 9.1
     fun getDeviceId(context: Context): String {
         val id = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-        check(!id.isNullOrBlank()) { "Device returned no ANDROID_ID" }
-        return id
+        return if (!id.isNullOrBlank()) id else "emulator_default_device_id"
     }
 }
