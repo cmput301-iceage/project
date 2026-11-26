@@ -51,6 +51,10 @@ class LotteryJoinSectionTest {
     )
 
     private lateinit var repo: InMemoryLotteryJoinRepository
+    /** The lotteries on screen, as the real screen's Firestore listener would supply them. */
+    private val shownState = mutableStateOf(emptyList<Waitlist>())
+    /** The listener's error, which can change while the screen is open. */
+    private val loadErrorState = mutableStateOf<String?>(null)
     private val joinedLotteries = mutableListOf<String>()
     /** Set to hold a join or leave until [release] is called. */
     private var hold = false
@@ -70,8 +74,10 @@ class LotteryJoinSectionTest {
         unreadable: Int = 0,
     ) {
         repo = InMemoryLotteryJoinRepository(lotteries.toList(), campsiteOwners = mapOf("site1" to siteOwner), clock = { now })
+        shownState.value = lotteries.toList()
+        loadErrorState.value = loadError
         composeRule.setContent {
-            var shown by remember { mutableStateOf(lotteries.toList()) }
+            var shown by shownState
             val refreshing = remember {
                 object : LotteryJoinRepository {
                     fun refresh() { shown = shown.map { w -> repo.peek(w.waitlistId) ?: w } }
@@ -88,7 +94,7 @@ class LotteryJoinSectionTest {
                 campsiteOwnerId = siteOwner,
                 userId = user,
                 repository = refreshing,
-                loadError = loadError,
+                loadError = loadErrorState.value,
                 unreadableCount = unreadable,
                 onJoined = { joinedLotteries += it.waitlistId },
                 now = { now },
@@ -153,6 +159,33 @@ class LotteryJoinSectionTest {
         composeRule.onNodeWithTag("leaveWaitlistButton_old").assertIsNotEnabled()
         release()
         composeRule.onNodeWithTag("leaveWaitlistButton_new").assertExists()
+    }
+
+    @Test
+    fun theBusyLabelFollowsTheActionStartedEvenIfTheListUpdatesFirst() {
+        show(lottery())
+        hold = true
+        composeRule.onNodeWithTag("joinWaitlistButton_w1").performClick()
+        // The listener reports the join before the join's own callback arrives, so the
+        // row now shows Leave; it should still say "Joining...".
+        composeRule.runOnIdle { shownState.value = listOf(lottery(joined = listOf("me"))) }
+        composeRule.onNodeWithTag("leaveWaitlistButton_w1").assertTextEquals("Joining...")
+        composeRule.onNodeWithTag("leaveWaitlistButton_w1").assertIsNotEnabled()
+        release()
+        composeRule.onNodeWithTag("leaveWaitlistButton_w1").assertTextEquals("Leave Lottery")
+    }
+
+    @Test
+    fun aResultIsStillShownWhenALoadErrorHidesTheList() {
+        show(lottery())
+        hold = true
+        composeRule.onNodeWithTag("joinWaitlistButton_w1").performClick()
+        // The listener fails while the join is still in progress.
+        composeRule.runOnIdle { loadErrorState.value = "offline" }
+        release()
+
+        composeRule.onNodeWithTag("lotteryLoadErrorText").assertExists()
+        composeRule.onNodeWithTag("joinMessage_w1").assertTextEquals("You joined Summer Lottery.")
     }
 
     @Test

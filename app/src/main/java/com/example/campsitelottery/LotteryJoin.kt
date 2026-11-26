@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -353,13 +354,13 @@ fun LotteryJoinSection(
 
     LaunchedEffect(lotteries) {
         time = now()
-        // Wakes at least once a minute, so a missed or late wake-up (the phone slept, or
-        // its clock changed) is caught up quickly.
+        // Wakes at least once a minute, even with no boundary ahead, so a missed or late
+        // wake-up (the phone slept, or its clock changed) is caught up quickly.
         while (true) {
-            val next = LotteryJoinPolicy.nextChange(lotteries, time) ?: break
-            delay((next.time - now().time + 500).coerceIn(1_000, 60_000))
+            val next = LotteryJoinPolicy.nextChange(lotteries, time)
+            delay(if (next == null) 60_000 else (next.time - now().time + 500).coerceIn(1_000, 60_000))
             val fresh = now()
-            if (!fresh.before(next) || fresh.before(time)) time = fresh
+            if ((next != null && !fresh.before(next)) || fresh.before(time)) time = fresh
         }
     }
 
@@ -435,8 +436,10 @@ fun LotteryJoinSection(
                 modifier = Modifier.testTag("unreadableLotteriesText"),
             )
         }
-        // A result for a lottery that's no longer listed still needs to be seen.
-        feedback?.takeIf { f -> shown.none { it.waitlistId == f.waitlistId } }?.let { FeedbackText(it) }
+        // A result for a lottery that isn't listed (or a load error is hiding the list)
+        // still needs to be seen.
+        val rendered = if (loadError != null) emptyList() else shown
+        feedback?.takeIf { f -> rendered.none { it.waitlistId == f.waitlistId } }?.let { FeedbackText(it) }
     }
 }
 
@@ -452,7 +455,9 @@ private fun FeedbackText(feedback: LotteryFeedback) {
     Text(
         feedback.text,
         fontSize = 14.sp,
-        color = if (feedback.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        // Unspecified keeps the screen's normal text colour; the theme's onSurface can be
+        // light (dynamic dark palette) while this screen's background stays light.
+        color = if (feedback.isError) MaterialTheme.colorScheme.error else Color.Unspecified,
         modifier = Modifier.testTag(if (feedback.isError) "joinError_$id" else "joinMessage_$id"),
     )
 }
