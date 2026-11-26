@@ -23,9 +23,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,19 +56,41 @@ object ProfileImagePolicy {
      */
     const val MAX_BYTES = 60_000
 
+    /**
+     * Most pixels decoded from a photo at once, so a huge or very long image (a
+     * panorama, say) can't use hundreds of MB of memory.
+     */
+    const val MAX_DECODE_PIXELS = 4_000_000
+
+    /** Longest side a stored picture is decoded at for display. */
+    const val MAX_DISPLAY_PX = 512
+
     /** JPEG qualities tried in order until the picture fits in [MAX_BYTES]. */
     val QUALITIES = listOf(85, 70, 55, 40)
 
     /**
-     * The largest power-of-two downsampling factor that still leaves the shorter
-     * side of a [width] x [height] image at least [target] pixels, so the photo
-     * isn't decoded at full resolution.
+     * The power-of-two downsampling factor to decode a [width] x [height] photo
+     * with: the largest that still leaves the shorter side at least [target]
+     * pixels, raised further if needed so no more than [maxPixels] are decoded.
      */
-    fun sampleSizeFor(width: Int, height: Int, target: Int = SIZE_PX): Int {
+    fun sampleSizeFor(
+        width: Int,
+        height: Int,
+        target: Int = SIZE_PX,
+        maxPixels: Int = MAX_DECODE_PIXELS,
+    ): Int {
+        if (width <= 0 || height <= 0) return 1
         val shorter = minOf(width, height)
-        if (shorter <= 0) return 1
         var sample = 1
         while (shorter / (sample * 2) >= target) sample *= 2
+        while ((width.toLong() / sample) * (height.toLong() / sample) > maxPixels) sample *= 2
+        return sample
+    }
+
+    /** The power-of-two factor that brings the longest side of a [width] x [height] image down to [maxSide] or less. */
+    fun sampleSizeToFit(width: Int, height: Int, maxSide: Int = MAX_DISPLAY_PX): Int {
+        var sample = 1
+        while (maxOf(width, height) / sample > maxSide) sample *= 2
         return sample
     }
 
@@ -77,12 +100,21 @@ object ProfileImagePolicy {
         return Triple((width - side) / 2, (height - side) / 2, side)
     }
 
-    /** Degrees to rotate a photo clockwise for its EXIF [orientation] so it shows upright. */
-    fun rotationFor(orientation: Int): Float = when (orientation) {
-        ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-        ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-        ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-        else -> 0f
+    /**
+     * How to turn a photo upright for its EXIF [orientation]: rotate it clockwise
+     * by the first value, then, if the second is true, mirror it left to right.
+     * Covers all eight EXIF orientations, including the mirrored ones some front
+     * cameras write.
+     */
+    fun transformFor(orientation: Int): Pair<Float, Boolean> = when (orientation) {
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> 0f to true
+        ExifInterface.ORIENTATION_ROTATE_180 -> 180f to false
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> 180f to true
+        ExifInterface.ORIENTATION_TRANSPOSE -> 90f to true
+        ExifInterface.ORIENTATION_ROTATE_90 -> 90f to false
+        ExifInterface.ORIENTATION_TRANSVERSE -> 270f to true
+        ExifInterface.ORIENTATION_ROTATE_270 -> 270f to false
+        else -> 0f to false
     }
 
     /** The Base64 payload of [stored], without any `data:image/...;base64,` prefix. */
@@ -114,9 +146,11 @@ suspend fun encodeProfileImage(context: Context, uri: Uri): String? = withContex
 
         val (left, top, side) = ProfileImagePolicy.centerSquare(decoded.width, decoded.height)
         val scale = ProfileImagePolicy.SIZE_PX.toFloat() / side
+        val (rotation, mirror) = ProfileImagePolicy.transformFor(orientation)
         val matrix = Matrix().apply {
             postScale(scale, scale)
-            postRotate(ProfileImagePolicy.rotationFor(orientation))
+            postRotate(rotation)
+            if (mirror) postScale(-1f, 1f)
         }
         val square = Bitmap.createBitmap(decoded, left, top, side, side, matrix, true)
 
@@ -139,7 +173,15 @@ fun decodeProfileImage(stored: String?): ImageBitmap? {
     if (stored.isNullOrBlank()) return null
     return runCatching {
         val bytes = Base64.decode(ProfileImagePolicy.base64Payload(stored), Base64.DEFAULT)
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        // Pictures saved by this app are small, but one written another way could be
+        // huge, so it's decoded at no more than MAX_DISPLAY_PX per side.
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = ProfileImagePolicy.sampleSizeToFit(bounds.outWidth, bounds.outHeight)
+        }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)?.asImageBitmap()
     }.getOrNull()
 }
 
@@ -175,33 +217,33 @@ fun ProfileAvatar(image: String?, name: String, size: Dp = 96.dp, modifier: Modi
     }
 }
 
-/**
- * Picks a photo for a profile picture. [choose] calls [onPicked] once a photo is
- * chosen and is being processed, then [onResult] with the encoded picture, or null
- * if it couldn't be used. If the user backs out of the picker, neither is called.
- */
-fun interface ProfileImageChooser {
-    fun choose(onPicked: () -> Unit, onResult: (String?) -> Unit)
+/** Opens a photo picker for a profile picture. Results go to the handlers given to [rememberProfileImagePicker]. */
+fun interface ProfileImagePicker {
+    fun pick()
 }
 
-/** A [ProfileImageChooser] that opens the system photo picker and encodes the photo with [encodeProfileImage]. */
+/**
+ * A [ProfileImagePicker] that opens the system photo picker and encodes the chosen
+ * photo with [encodeProfileImage]. [onPicked] is called once a photo is chosen and
+ * being processed, then [onResult] with the encoded picture, or null if it couldn't
+ * be used. Backing out of the picker calls neither.
+ *
+ * The result always goes to the latest handlers, so a photo picked just before the
+ * screen is recreated (e.g. the phone is rotated) still arrives.
+ */
 @Composable
-fun rememberProfileImageChooser(): ProfileImageChooser {
+fun rememberProfileImagePicker(onPicked: () -> Unit, onResult: (String?) -> Unit): ProfileImagePicker {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    // Callbacks for the picker that's currently open.
-    val pending = remember { mutableStateOf<Pair<() -> Unit, (String?) -> Unit>?>(null) }
+    val currentOnPicked by rememberUpdatedState(onPicked)
+    val currentOnResult by rememberUpdatedState(onResult)
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        val callbacks = pending.value
-        pending.value = null
-        if (uri == null || callbacks == null) return@rememberLauncherForActivityResult
-        val (onPicked, onResult) = callbacks
-        onPicked()
-        scope.launch { onResult(encodeProfileImage(context, uri)) }
+        if (uri == null) return@rememberLauncherForActivityResult
+        currentOnPicked()
+        scope.launch { currentOnResult(encodeProfileImage(context, uri)) }
     }
     return remember(launcher) {
-        ProfileImageChooser { onPicked, onResult ->
-            pending.value = onPicked to onResult
+        ProfileImagePicker {
             launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
     }

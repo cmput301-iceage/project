@@ -3,20 +3,26 @@ package com.example.campsitelottery
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.util.Base64
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,20 +47,44 @@ class ProfileImageScreenTest {
         return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
     }
 
-    /** A chooser that "picks" whatever [next] holds; null means the photo couldn't be used. */
-    private class FakeChooser : ProfileImageChooser {
+    /**
+     * Stands in for the photo picker: "picks" whatever [next] holds (null means the
+     * photo couldn't be used). With [hold], the result waits until [release].
+     */
+    private class FakePicker {
         var next: String? = null
         var cancel = false
         var hold = false
-        override fun choose(onPicked: () -> Unit, onResult: (String?) -> Unit) {
-            if (cancel) return
-            onPicked()
-            if (!hold) onResult(next)
+        private var held: (() -> Unit)? = null
+
+        fun release() {
+            held?.invoke()
+            held = null
+        }
+
+        val factory: @Composable (() -> Unit, (String?) -> Unit) -> ProfileImagePicker = { onPicked, onResult ->
+            // Like the real picker, report to whichever handlers are current.
+            val currentOnPicked by rememberUpdatedState(onPicked)
+            val currentOnResult by rememberUpdatedState(onResult)
+            remember {
+                ProfileImagePicker {
+                    if (cancel) return@ProfileImagePicker
+                    currentOnPicked()
+                    val result = next
+                    if (hold) held = { currentOnResult(result) } else currentOnResult(result)
+                }
+            }
         }
     }
 
     private lateinit var repo: InMemoryUserRepository
-    private val chooser = FakeChooser()
+    private val chooser = FakePicker()
+
+    /** Colour at the centre of the profile picture as shown on screen. */
+    private fun shownColor(): Int {
+        val bitmap = composeRule.onNodeWithTag("profileImage").captureToImage().asAndroidBitmap()
+        return bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)
+    }
 
     private fun showProfile(user: User) {
         repo = InMemoryUserRepository(listOf(user))
@@ -67,7 +97,7 @@ class ProfileImageScreenTest {
                 userRepository = repo,
                 onUserChanged = { change -> current = change(current) },
                 onUserDeleted = {},
-                chooseImage = chooser,
+                imagePicker = chooser.factory,
             )
         }
     }
@@ -99,10 +129,33 @@ class ProfileImageScreenTest {
     fun changingAPhotoReplacesIt() {
         showProfile(User(userId = "u1", name = "Jane", profileImageUrl = solidImage(Color.RED)))
         val blue = solidImage(Color.BLUE)
+        assertTrue(Color.red(shownColor()) > 180)
         chooser.next = blue
         composeRule.onNodeWithTag("choosePhotoButton").performClick()
         assertEquals(blue, repo.peek("u1")?.profileImageUrl)
-        composeRule.onNodeWithTag("profileImage").assertExists()
+        // The new picture is what's on screen, not just what's saved.
+        val shown = shownColor()
+        assertTrue(Color.blue(shown) > 180 && Color.red(shown) < 80)
+    }
+
+    @Test
+    fun aPhotoStillProcessingWhenEditingIsOpenedAndCancelledIsSavedOnce() {
+        showProfile(User(userId = "u1", name = "Jane"))
+        val image = solidImage(Color.GREEN)
+        chooser.next = image
+        chooser.hold = true
+        composeRule.onNodeWithTag("choosePhotoButton").performClick()
+
+        composeRule.onNodeWithTag("editProfileButton").performClick()
+        // The photo section stays put while editing, still busy, so no second pick can start.
+        composeRule.onNodeWithTag("choosePhotoButton").assertTextEquals("Processing...")
+        composeRule.onNodeWithTag("choosePhotoButton").assertIsNotEnabled()
+        composeRule.onNodeWithTag("cancelEditButton").performScrollTo().performClick()
+
+        chooser.release()
+        composeRule.waitForIdle()
+        assertEquals(image, repo.peek("u1")?.profileImageUrl)
+        composeRule.onNodeWithTag("choosePhotoButton").assertTextEquals("Change Photo")
     }
 
     @Test

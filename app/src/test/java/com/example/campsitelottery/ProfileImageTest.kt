@@ -36,12 +36,33 @@ class ProfileImageTest {
     }
 
     @Test
-    fun rotationFollowsTheExifOrientation() {
-        assertEquals(0f, ProfileImagePolicy.rotationFor(ExifInterface.ORIENTATION_NORMAL))
-        assertEquals(90f, ProfileImagePolicy.rotationFor(ExifInterface.ORIENTATION_ROTATE_90))
-        assertEquals(180f, ProfileImagePolicy.rotationFor(ExifInterface.ORIENTATION_ROTATE_180))
-        assertEquals(270f, ProfileImagePolicy.rotationFor(ExifInterface.ORIENTATION_ROTATE_270))
-        assertEquals(0f, ProfileImagePolicy.rotationFor(ExifInterface.ORIENTATION_UNDEFINED))
+    fun everyExifOrientationHasATransform() {
+        assertEquals(0f to false, ProfileImagePolicy.transformFor(ExifInterface.ORIENTATION_NORMAL))
+        assertEquals(0f to false, ProfileImagePolicy.transformFor(ExifInterface.ORIENTATION_UNDEFINED))
+        assertEquals(0f to true, ProfileImagePolicy.transformFor(ExifInterface.ORIENTATION_FLIP_HORIZONTAL))
+        assertEquals(180f to false, ProfileImagePolicy.transformFor(ExifInterface.ORIENTATION_ROTATE_180))
+        assertEquals(180f to true, ProfileImagePolicy.transformFor(ExifInterface.ORIENTATION_FLIP_VERTICAL))
+        assertEquals(90f to true, ProfileImagePolicy.transformFor(ExifInterface.ORIENTATION_TRANSPOSE))
+        assertEquals(90f to false, ProfileImagePolicy.transformFor(ExifInterface.ORIENTATION_ROTATE_90))
+        assertEquals(270f to true, ProfileImagePolicy.transformFor(ExifInterface.ORIENTATION_TRANSVERSE))
+        assertEquals(270f to false, ProfileImagePolicy.transformFor(ExifInterface.ORIENTATION_ROTATE_270))
+    }
+
+    @Test
+    fun veryLongImagesAreDownsampledToBoundMemory() {
+        // A 60000 x 500 panorama would be 30 MP at full size.
+        val sample = ProfileImagePolicy.sampleSizeFor(60_000, 500)
+        assertTrue((60_000L / sample) * (500L / sample) <= ProfileImagePolicy.MAX_DECODE_PIXELS)
+        // Ordinary photos are unaffected by the cap.
+        assertEquals(8, ProfileImagePolicy.sampleSizeFor(4000, 3000))
+    }
+
+    @Test
+    fun displayDecodingFitsTheLongestSide() {
+        assertEquals(1, ProfileImagePolicy.sampleSizeToFit(256, 256))
+        assertEquals(1, ProfileImagePolicy.sampleSizeToFit(512, 300))
+        assertEquals(2, ProfileImagePolicy.sampleSizeToFit(1000, 1000))
+        assertEquals(32, ProfileImagePolicy.sampleSizeToFit(10_000, 100))
     }
 
     @Test

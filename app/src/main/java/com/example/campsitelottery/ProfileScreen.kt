@@ -61,7 +61,8 @@ import androidx.navigation.compose.rememberNavController
  * @param onUserDeleted called after the profile has been deleted.
  * @param onRetry called to load the profile again: after a failed load, or to create
  *   a fresh profile after deleting one.
- * @param chooseImage picks and encodes a new profile picture (US 8.2).
+ * @param imagePicker creates the picker used to choose a new profile picture (US 8.2),
+ *   given the handlers it reports to; see [rememberProfileImagePicker].
  */
 @Composable
 fun ProfileScreen(
@@ -71,7 +72,8 @@ fun ProfileScreen(
     onUserChanged: ((User) -> User) -> Unit,
     onUserDeleted: () -> Unit,
     onRetry: () -> Unit = {},
-    chooseImage: ProfileImageChooser = rememberProfileImageChooser(),
+    imagePicker: @Composable (onPicked: () -> Unit, onResult: (String?) -> Unit) -> ProfileImagePicker =
+        { onPicked, onResult -> rememberProfileImagePicker(onPicked, onResult) },
 ) {
     var isEditing by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
@@ -192,7 +194,16 @@ fun ProfileScreen(
                     )
                     Button(onClick = onRetry, shape = RectangleShape) { Text("Retry") }
                 }
-                is UserState.Ready ->
+                is UserState.Ready -> {
+                    // Outside the edit/view switch so a photo being processed isn't
+                    // lost or duplicated when Edit Profile is opened or cancelled.
+                    ProfilePhotoSection(
+                        user = userState.user,
+                        userRepository = userRepository,
+                        imagePicker = imagePicker,
+                        onUserChanged = onUserChanged,
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     if (isEditing) {
                         EditProfileForm(
                             user = userState.user,
@@ -204,13 +215,6 @@ fun ProfileScreen(
                             onCancel = { isEditing = false },
                         )
                     } else {
-                        ProfilePhotoSection(
-                            user = userState.user,
-                            userRepository = userRepository,
-                            chooseImage = chooseImage,
-                            onUserChanged = onUserChanged,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
                         ProfileDetails(userState.user)
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(
@@ -221,6 +225,7 @@ fun ProfileScreen(
                             Text("Edit Profile")
                         }
                     }
+                }
             }
         }
 
@@ -314,7 +319,7 @@ fun ProfileScreen(
 private fun ProfilePhotoSection(
     user: User,
     userRepository: UserRepository,
-    chooseImage: ProfileImageChooser,
+    imagePicker: @Composable (onPicked: () -> Unit, onResult: (String?) -> Unit) -> ProfileImagePicker,
     onUserChanged: ((User) -> User) -> Unit,
 ) {
     var isProcessing by remember { mutableStateOf(false) }
@@ -340,6 +345,18 @@ private fun ProfilePhotoSection(
             },
         )
     }
+
+    val picker = imagePicker(
+        { isProcessing = true },
+        { image ->
+            isProcessing = false
+            if (image == null) {
+                photoError = "Couldn't use that photo. Try a different one."
+            } else {
+                save(image)
+            }
+        },
+    )
 
     if (showRemoveDialog) {
         AlertDialog(
@@ -372,17 +389,7 @@ private fun ProfilePhotoSection(
             Button(
                 onClick = {
                     photoError = null
-                    chooseImage.choose(
-                        onPicked = { isProcessing = true },
-                        onResult = { image ->
-                            isProcessing = false
-                            if (image == null) {
-                                photoError = "Couldn't use that photo. Try a different one."
-                            } else {
-                                save(image)
-                            }
-                        },
-                    )
+                    picker.pick()
                 },
                 enabled = !busy,
                 shape = RectangleShape,
@@ -569,6 +576,6 @@ fun ProfileScreenPreview() {
         userRepository = remember { InMemoryUserRepository(listOf(user)) },
         onUserChanged = {},
         onUserDeleted = {},
-        chooseImage = { _, _ -> },
+        imagePicker = { _, _ -> ProfileImagePicker {} },
     )
 }

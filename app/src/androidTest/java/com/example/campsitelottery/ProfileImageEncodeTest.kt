@@ -46,6 +46,72 @@ class ProfileImageEncodeTest {
         return Uri.fromFile(file)
     }
 
+    /**
+     * Saves a square JPEG with four coloured quarters: red top-left, green top-right,
+     * blue bottom-left, yellow bottom-right, tagged with the EXIF [orientation].
+     */
+    private fun quarters(orientation: Int): Uri {
+        val size = 400
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val half = size / 2f
+        Canvas(bitmap).apply {
+            drawRect(0f, 0f, half, half, Paint().apply { color = Color.RED })
+            drawRect(half, 0f, size.toFloat(), half, Paint().apply { color = Color.GREEN })
+            drawRect(0f, half, half, size.toFloat(), Paint().apply { color = Color.BLUE })
+            drawRect(half, half, size.toFloat(), size.toFloat(), Paint().apply { color = Color.YELLOW })
+        }
+        val file = File.createTempFile("quarters", ".jpg", context.cacheDir)
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+        ExifInterface(file.absolutePath).apply {
+            setAttribute(ExifInterface.TAG_ORIENTATION, orientation.toString())
+            saveAttributes()
+        }
+        return Uri.fromFile(file)
+    }
+
+    /** Names the colour of each quarter of [bitmap]: top-left, top-right, bottom-left, bottom-right. */
+    private fun quarterColors(bitmap: Bitmap): List<String> {
+        val q = bitmap.width / 4
+        return listOf(q to q, 3 * q to q, q to 3 * q, 3 * q to 3 * q).map { (x, y) ->
+            val p = bitmap.getPixel(x, y)
+            val (r, g, b) = Triple(Color.red(p) > 150, Color.green(p) > 150, Color.blue(p) > 150)
+            when {
+                r && g && !b -> "yellow"
+                r -> "red"
+                g -> "green"
+                b -> "blue"
+                else -> "?"
+            }
+        }
+    }
+
+    @Test
+    fun allEightExifOrientationsComeOutUpright() = runBlocking {
+        // Each EXIF value says how the stored pixels must be transformed to show the
+        // photo upright; these are the quarters a correct viewer would display.
+        val expected = mapOf(
+            ExifInterface.ORIENTATION_NORMAL to listOf("red", "green", "blue", "yellow"),
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL to listOf("green", "red", "yellow", "blue"),
+            ExifInterface.ORIENTATION_ROTATE_180 to listOf("yellow", "blue", "green", "red"),
+            ExifInterface.ORIENTATION_FLIP_VERTICAL to listOf("blue", "yellow", "red", "green"),
+            ExifInterface.ORIENTATION_TRANSPOSE to listOf("red", "blue", "green", "yellow"),
+            ExifInterface.ORIENTATION_ROTATE_90 to listOf("blue", "red", "yellow", "green"),
+            ExifInterface.ORIENTATION_TRANSVERSE to listOf("yellow", "green", "blue", "red"),
+            ExifInterface.ORIENTATION_ROTATE_270 to listOf("green", "yellow", "red", "blue"),
+        )
+        for ((orientation, quarters) in expected) {
+            val bitmap = decode(encodeProfileImage(context, quarters(orientation))!!)
+            assertEquals("orientation $orientation", quarters, quarterColors(bitmap))
+        }
+    }
+
+    @Test
+    fun aVeryLongPanoramaIsHandled() = runBlocking {
+        val encoded = encodeProfileImage(context, splitImage(12_000, 300))
+        assertNotNull(encoded)
+        assertEquals(ProfileImagePolicy.SIZE_PX, decode(encoded!!).width)
+    }
+
     private fun decode(encoded: String): Bitmap {
         val bytes = Base64.decode(encoded, Base64.DEFAULT)
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
