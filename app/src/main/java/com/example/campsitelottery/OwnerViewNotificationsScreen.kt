@@ -150,7 +150,7 @@ fun OwnerViewNotificationsScreen(
             Button(
                 onClick = { navController.popBackStack() },
                 shape = RectangleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
+                colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = Color.White)
             ) {
                 Text("< Back")
             }

@@ -136,7 +136,7 @@ fun AdminNotificationLogScreen(navController: NavController) {
             Button(
                 onClick = { showFilterDialog = true },
                 shape = RectangleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
+                colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = Color.White)
             ) {
                 Text("Filter")
             }
@@ -261,7 +261,7 @@ fun AdminNotificationLogScreen(navController: NavController) {
             confirmButton = {
                 Button(
                     onClick = { showFilterDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
+                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = Color.White)
                 ) {
                     Text("Apply")
                 }

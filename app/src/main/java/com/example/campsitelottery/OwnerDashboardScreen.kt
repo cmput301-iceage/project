@@ -101,6 +101,9 @@ fun OwnerDashboardScreen(
             Button(onClick = { navController.navigate("ownerViewNotifications") }, shape = RectangleShape) {
                 Text("View Notifications")
             }
+        }
+        // Own row: a third button doesn't fit beside the two above on a phone screen.
+        Row(modifier = Modifier.fillMaxWidth()) {
             Button(onClick = { navController.navigate("messages") }, shape = RectangleShape) {
                 Text("Messages")
             }
