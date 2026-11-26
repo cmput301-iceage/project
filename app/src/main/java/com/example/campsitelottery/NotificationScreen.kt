@@ -6,6 +6,7 @@
 package com.example.campsitelottery
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -134,7 +135,26 @@ fun NotificationScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 6.dp),
+                                .padding(vertical = 6.dp)
+                                .then(
+                                    if (notification.type == "LOTTERY_WIN" && notification.waitlistId.isNotBlank()) {
+                                        Modifier.clickable {
+                                            navController.navigate("booking/${notification.waitlistId}")
+                                        }
+                                    } else if (notification.type == "RESERVATION" || notification.type == "RESERVATION_CANCELLED" || notification.type == "RESERVATION_REJECTED") {
+                                        Modifier.clickable {
+                                            navController.navigate("reservation")
+                                        }
+                                    } else if (notification.type == "LOTTERY_JOINED") {
+                                        Modifier.clickable {
+                                            if (notification.campsiteId.isNotBlank()) {
+                                                navController.navigate("campsiteInfo/${notification.campsiteId}")
+                                            } else if (notification.waitlistId.isNotBlank()) {
+                                                navController.navigate("booking/${notification.waitlistId}")
+                                            }
+                                        }
+                                    } else Modifier
+                                ),
                             colors = CardDefaults.cardColors(
                                 containerColor = buttonColor,
                                 contentColor = cardBg
@@ -173,6 +193,38 @@ fun NotificationScreen(
                                         )
                                     ) {
                                         Text("Reserve Now")
+                                    }
+                                } else if (notification.type == "RESERVATION") {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(
+                                        onClick = {
+                                            navController.navigate("reservation")
+                                        },
+                                        shape = RectangleShape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = cardBg,
+                                            contentColor = buttonColor
+                                        )
+                                    ) {
+                                        Text("View Reservation")
+                                    }
+                                } else if (notification.type == "LOTTERY_JOINED") {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(
+                                        onClick = {
+                                            if (notification.campsiteId.isNotBlank()) {
+                                                navController.navigate("campsiteInfo/${notification.campsiteId}")
+                                            } else if (notification.waitlistId.isNotBlank()) {
+                                                navController.navigate("booking/${notification.waitlistId}")
+                                            }
+                                        },
+                                        shape = RectangleShape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = cardBg,
+                                            contentColor = buttonColor
+                                        )
+                                    ) {
+                                        Text("View Lottery Details")
                                     }
                                 }
                             }

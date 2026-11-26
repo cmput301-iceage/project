@@ -111,7 +111,7 @@ object LotteryDrawManager {
             }
     }
 
-    private fun sendNotifications(
+    fun sendNotifications(
         waitlist: Waitlist,
         winners: List<String>,
         losers: List<String>

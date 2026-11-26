@@ -217,6 +217,34 @@ fun CampsiteInfoScreen(
             .addOnSuccessListener {
                 isJoining = false
                 joinMessage = "Joined the lottery waitlist."
+
+                val title = "Lottery Joined! ⛺"
+                val lotteryName = target.lotteryName.ifBlank { campsite?.name ?: "Campsite" }
+                val message = "You have successfully joined the waitlist for '$lotteryName'."
+                val owner = target.ownerId.ifBlank { campsite?.ownerId ?: "" }
+
+                val notification = NotificationItem(
+                    userId = deviceId,
+                    title = title,
+                    message = message,
+                    type = "LOTTERY_JOINED",
+                    waitlistId = target.waitlistId,
+                    ownerId = owner,
+                    campsiteId = campsiteId,
+                    timestamp = Date(),
+                    isRead = false
+                )
+
+                FirebaseFirestore.getInstance()
+                    .collection("notifications")
+                    .add(notification)
+
+                NotificationHelper.sendNotification(
+                    id = (target.waitlistId.hashCode() xor deviceId.hashCode()),
+                    title = title,
+                    message = message,
+                    userState = currentUser?.let { UserState.Ready(it) } ?: UserState.Ready(User(userId = deviceId))
+                )
             }
             .addOnFailureListener {
                 isJoining = false

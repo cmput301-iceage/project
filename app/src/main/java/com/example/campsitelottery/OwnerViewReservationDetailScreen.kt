@@ -240,7 +240,12 @@ fun OwnerViewReservationDetailScreen(
                                                 "updatedAt" to FieldValue.serverTimestamp()
                                             )
                                         )
-                                        .addOnSuccessListener { navController.popBackStack() }
+                                        .addOnSuccessListener {
+                                            reservation?.let { res ->
+                                                NotificationHelper.sendReservationRejectedByOwnerNotification(res)
+                                            }
+                                            navController.popBackStack()
+                                        }
 
                                 }
                             ) {

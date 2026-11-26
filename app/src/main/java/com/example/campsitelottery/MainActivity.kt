@@ -43,21 +43,22 @@ class MainActivity : ComponentActivity() {
      *
      * @param savedInstanceState Saved instance state bundle.
      */
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
 
         NotificationHelper.initialize(applicationContext)
         NotificationHelper.setPermissionRequester {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
         LotteryDrawWorker.schedule(applicationContext)
         LotteryDrawManager.checkAndDrawAllExpiredLotteries()
         enableEdgeToEdge()
         setContent {
             CampsiteLotteryTheme {
-                CampsiteLotteryApp()
+                CampsiteLotteryApp(startIntent = intent)
             }
         }
     }

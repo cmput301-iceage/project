@@ -17,6 +17,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 
+import android.content.Intent
+
 /**
  * Root composable: identifies the device's user and hosts navigation between screens.
  *
@@ -32,7 +34,8 @@ fun CampsiteLotteryApp(
     userRepository: UserRepository = remember { FirestoreUserRepository() },
     deviceId: String = LocalContext.current.let { context ->
         remember(context) { DeviceIdentity.getDeviceId(context) }
-    }
+    },
+    startIntent: Intent? = null
 ) {
 
     val navController = rememberNavController()
@@ -47,6 +50,31 @@ fun CampsiteLotteryApp(
         )
     }
     LaunchedEffect(deviceId) { loadUser() }
+
+    LaunchedEffect(startIntent) {
+        val type = startIntent?.getStringExtra("notification_type") ?: return@LaunchedEffect
+        val waitlistId = startIntent.getStringExtra("waitlist_id").orEmpty()
+        val campsiteId = startIntent.getStringExtra("campsite_id").orEmpty()
+
+        when (type) {
+            "LOTTERY_WIN" -> {
+                if (waitlistId.isNotBlank()) navController.navigate("booking/$waitlistId")
+                else navController.navigate("notification")
+            }
+            "LOTTERY_JOINED" -> {
+                if (campsiteId.isNotBlank()) navController.navigate("campsiteInfo/$campsiteId")
+                else if (waitlistId.isNotBlank()) navController.navigate("booking/$waitlistId")
+                else navController.navigate("notification")
+            }
+            "RESERVATION", "RESERVATION_CANCELLED", "RESERVATION_REJECTED" -> {
+                navController.navigate("reservation")
+            }
+            "OWNER_RESERVATION", "OWNER_RESERVATION_CANCELLED", "OWNER_RESERVATION_REJECTED", "OWNER_INVITATION_DECLINED" -> {
+                navController.navigate("ownerViewNotifications")
+            }
+            else -> navController.navigate("notification")
+        }
+    }
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
@@ -142,6 +170,11 @@ fun CampsiteLotteryApp(
             )}
         composable("ownerViewLotteriesScreen") {
             OwnerViewLotteriesScreen(
+                navController,
+                deviceId
+            )}
+        composable("ownerViewNotifications") {
+            OwnerViewNotificationsScreen(
                 navController,
                 deviceId
             )}

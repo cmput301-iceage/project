@@ -23,6 +23,8 @@ data class NotificationItem(
     var message: String = "",
     var type: String = "SYSTEM",
     var waitlistId: String = "",
+    var ownerId: String = "",
+    var campsiteId: String = "",
     var timestamp: Date = Date(),
     var isRead: Boolean = false
 ) {
@@ -36,6 +38,8 @@ data class NotificationItem(
         message = "",
         type = "SYSTEM",
         waitlistId = "",
+        ownerId = "",
+        campsiteId = "",
         timestamp = Date(),
         isRead = false
     )
