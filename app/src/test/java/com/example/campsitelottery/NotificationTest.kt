@@ -114,13 +114,24 @@ class NotificationTest {
     }
 
     @Test
-    fun cancellationAndRejectionNotificationTypes_areConstructed() {
-        val cancel = NotificationItem(type = "RESERVATION_CANCELLED", title = "Reservation Cancelled")
-        val reject = NotificationItem(type = "RESERVATION_REJECTED", title = "Reservation Rejected")
-        val decline = NotificationItem(type = "INVITATION_DECLINED", title = "Invitation Declined")
-
-        assertEquals("RESERVATION_CANCELLED", cancel.type)
-        assertEquals("RESERVATION_REJECTED", reject.type)
-        assertEquals("INVITATION_DECLINED", decline.type)
+    fun allNotificationTypes_areTestedAtLeastOnce() {
+        val types = listOf(
+            "SYSTEM",
+            "LOTTERY_WIN",
+            "LOTTERY_LOSS",
+            "LOTTERY_JOINED",
+            "RESERVATION",
+            "OWNER_RESERVATION",
+            "RESERVATION_CANCELLED",
+            "OWNER_RESERVATION_CANCELLED",
+            "RESERVATION_REJECTED",
+            "OWNER_RESERVATION_REJECTED",
+            "INVITATION_DECLINED",
+            "OWNER_INVITATION_DECLINED"
+        )
+        for (t in types) {
+            val item = NotificationItem(type = t, title = "Test $t")
+            assertEquals(t, item.type)
+        }
     }
 }
