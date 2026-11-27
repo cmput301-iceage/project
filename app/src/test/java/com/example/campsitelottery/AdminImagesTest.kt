@@ -80,7 +80,10 @@ class AdminImagesTest {
 
     @Test
     fun searchAndFilterCombine() {
-        val items = build(campsites = listOf(lakeside.copy(name = "Alice Lake")), profiles = listOf(alice))
+        val items = build(
+            campsites = listOf(lakeside.copy(name = "Alice Lake"), lakeside.copy(campsiteId = "other", name = "Pine Ridge")),
+            profiles = listOf(alice, zed),
+        )
         assertEquals(listOf("alice"), AdminImageList.visible(items, "alice", ImageFilterMode.PROFILES).map { it.id })
         assertEquals(listOf("site1"), AdminImageList.visible(items, "alice", ImageFilterMode.CAMPSITES).map { it.id })
     }

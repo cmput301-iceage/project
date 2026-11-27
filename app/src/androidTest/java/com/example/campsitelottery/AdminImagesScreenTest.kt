@@ -4,7 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.util.Base64
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.onChildren
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -46,18 +48,38 @@ class AdminImagesScreenTest {
     private fun repo(profiles: List<ProfileImageEntry> = listOf(alice)) =
         InMemoryAdminImageRepository(listOf(site), profiles, mapOf("owner1" to "Olive Owner"))
 
-    /** Holds back profile pictures until [release] is called, like a slow Firestore query. */
-    private class HeldProfiles(private val inner: InMemoryAdminImageRepository) : AdminImageRepository by inner {
+    /** Holds back one kind of image until [release] is called, like a slow Firestore query. */
+    private class Held(
+        private val inner: InMemoryAdminImageRepository,
+        private val holdCampsites: Boolean = false,
+    ) : AdminImageRepository by inner {
         private var pending: (() -> Unit)? = null
+        private var stop: () -> Unit = {}
+
+        private fun hold(start: () -> (() -> Unit)): () -> Unit {
+            pending = { stop = start() }
+            return {
+                pending = null
+                stop()
+            }
+        }
+
+        override fun listenToCampsites(onUpdate: (List<Campsite>) -> Unit, onError: (Exception) -> Unit) =
+            if (holdCampsites) hold { inner.listenToCampsites(onUpdate, onError) }
+            else inner.listenToCampsites(onUpdate, onError)
+
         override fun listenToProfileImages(
             onUpdate: (List<ProfileImageEntry>) -> Unit,
             onError: (Exception) -> Unit,
-        ): () -> Unit {
-            var stop: () -> Unit = {}
-            pending = { stop = inner.listenToProfileImages(onUpdate, onError) }
-            return { stop() }
+        ) = if (holdCampsites) inner.listenToProfileImages(onUpdate, onError)
+            else hold { inner.listenToProfileImages(onUpdate, onError) }
+
+        /** Delivers the held images once; later calls do nothing. */
+        fun release() {
+            val start = pending ?: return
+            pending = null
+            start()
         }
-        fun release() = pending!!.invoke()
     }
 
     private fun show(repo: AdminImageRepository) {
@@ -127,7 +149,7 @@ class AdminImagesScreenTest {
 
     @Test
     fun campsiteImagesShowWhileProfilePicturesAreStillLoading() {
-        val held = HeldProfiles(repo())
+        val held = Held(repo())
         show(held)
         composeRule.onNodeWithTag("imageCard_site1").assertIsDisplayed()
         composeRule.onNodeWithTag("profileImagesLoading").assertIsDisplayed()
@@ -140,11 +162,52 @@ class AdminImagesScreenTest {
 
     @Test
     fun spinnerNotEmptyMessageWhileOnlyProfilePicturesAreLoading() {
-        val held = HeldProfiles(InMemoryAdminImageRepository(profiles = listOf(alice)))
+        val held = Held(InMemoryAdminImageRepository(profiles = listOf(alice)))
         show(held)
+        composeRule.onNodeWithTag("imagesLoadingSpinner").assertIsDisplayed()
         composeRule.onNodeWithTag("emptyImagesMessage").assertDoesNotExist()
         composeRule.runOnIdle { held.release() }
         composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
+        composeRule.onNodeWithTag("imagesLoadingSpinner").assertDoesNotExist()
+    }
+
+    @Test
+    fun profilePicturesShowWhileCampsiteImagesAreStillLoading() {
+        val held = Held(repo(), holdCampsites = true)
+        show(held)
+        composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
+        composeRule.onNodeWithTag("campsiteImagesLoading").assertIsDisplayed()
+        composeRule.runOnIdle { held.release() }
+        composeRule.onNodeWithTag("imageCard_site1").assertIsDisplayed()
+        composeRule.onNodeWithTag("campsiteImagesLoading").assertDoesNotExist()
+    }
+
+    @Test
+    fun campsiteOnlyFilterDoesNotWaitForProfilePictures() {
+        val held = Held(InMemoryAdminImageRepository(profiles = listOf(alice)))
+        show(held)
+        composeRule.onNodeWithTag("imageFilterButton").performClick()
+        composeRule.onNodeWithTag("imageFilter_CAMPSITES").performClick()
+        composeRule.onNodeWithTag("emptyImagesMessage").assertTextContains("No uploaded images found.")
+        composeRule.onNodeWithTag("imagesLoadingSpinner").assertDoesNotExist()
+    }
+
+    @Test
+    fun profileErrorDoesNotChangeCampsiteOnlyEmptyMessage() {
+        val failing = object : AdminImageRepository by InMemoryAdminImageRepository() {
+            override fun listenToProfileImages(
+                onUpdate: (List<ProfileImageEntry>) -> Unit,
+                onError: (Exception) -> Unit,
+            ): () -> Unit {
+                onError(IllegalStateException("permission denied"))
+                return {}
+            }
+        }
+        show(failing)
+        composeRule.onNodeWithTag("emptyImagesMessage").assertTextContains("Some images couldn't be loaded.")
+        composeRule.onNodeWithTag("imageFilterButton").performClick()
+        composeRule.onNodeWithTag("imageFilter_CAMPSITES").performClick()
+        composeRule.onNodeWithTag("emptyImagesMessage").assertTextContains("No uploaded images found.")
     }
 
     @Test
@@ -166,8 +229,9 @@ class AdminImagesScreenTest {
         composeRule.onNodeWithTag("imageCard_site1").assertIsDisplayed()
         composeRule.onNodeWithTag("imageFilterButton").performClick()
         composeRule.onNodeWithTag("imageFilter_PROFILES").performClick()
+        // Every row of a short list is composed, so the count proves nothing else is in it.
+        composeRule.onNodeWithTag("adminImagesList").onChildren().assertCountEquals(1)
         composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
-        composeRule.onNodeWithTag("imageCard_site1").assertDoesNotExist()
     }
 
     @Test
@@ -175,9 +239,8 @@ class AdminImagesScreenTest {
         show(repo(listOf(alice, ProfileImageEntry("zed", "Zed Albers", picture))))
         composeRule.onNodeWithTag("adminImagesList").performScrollToNode(hasTestTag("profileImageCard_zed"))
         composeRule.onNodeWithTag("imageSearchField").performTextInput("moreau")
+        composeRule.onNodeWithTag("adminImagesList").onChildren().assertCountEquals(1)
         composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
-        composeRule.onNodeWithTag("profileImageCard_zed").assertDoesNotExist()
-        composeRule.onNodeWithTag("imageCard_site1").assertDoesNotExist()
     }
 
     @Test

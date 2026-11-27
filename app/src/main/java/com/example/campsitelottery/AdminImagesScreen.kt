@@ -152,8 +152,13 @@ fun AdminImagesScreen(
     val visibleImages: List<AdminImageItem> = remember(images, searchQuery, filterMode) {
         AdminImageList.visible(images, searchQuery, filterMode)
     }
-    // Campsite images are shown as soon as they arrive; profile pictures join them when they do.
-    val isLoading = !campsitesLoaded || (!profilesLoaded && visibleImages.isEmpty())
+    // Each kind of image is shown as soon as it arrives. Only kinds the filter includes are waited for.
+    val showsCampsites = filterMode != ImageFilterMode.PROFILES
+    val showsProfiles = filterMode != ImageFilterMode.CAMPSITES
+    val loadingCampsites = showsCampsites && !campsitesLoaded
+    val loadingProfiles = showsProfiles && !profilesLoaded
+    val isLoading = visibleImages.isEmpty() && (loadingCampsites || loadingProfiles)
+    val shownSourceFailed = (showsCampsites && campsiteError != null) || (showsProfiles && profileError != null)
 
     fun confirmDeleteImage(item: AdminImageItem) {
         if (isDeleting) return
@@ -314,7 +319,15 @@ fun AdminImagesScreen(
                 modifier = Modifier.testTag("profileImagesError"),
             )
         }
-        if (!profilesLoaded && !isLoading) {
+        if (!isLoading && loadingCampsites) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Loading campsite images...",
+                fontSize = 14.sp,
+                modifier = Modifier.testTag("campsiteImagesLoading"),
+            )
+        }
+        if (!isLoading && loadingProfiles) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Loading profile pictures...",
@@ -337,13 +350,16 @@ fun AdminImagesScreen(
         when {
             isLoading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = buttonColor)
+                    CircularProgressIndicator(
+                        color = buttonColor,
+                        modifier = Modifier.testTag("imagesLoadingSpinner"),
+                    )
                 }
             }
             visibleImages.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = if (campsiteError != null || profileError != null) {
+                        text = if (shownSourceFailed) {
                             "Some images couldn't be loaded."
                         } else if (searchQuery.isBlank()) {
                             "No uploaded images found."
