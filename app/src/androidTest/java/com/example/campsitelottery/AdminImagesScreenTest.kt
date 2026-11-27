@@ -4,9 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.util.Base64
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertTextContains
-import androidx.compose.ui.test.onChildren
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -55,8 +54,11 @@ class AdminImagesScreenTest {
     ) : AdminImageRepository by inner {
         private var pending: (() -> Unit)? = null
         private var stop: () -> Unit = {}
+        private var registered = false
 
         private fun hold(start: () -> (() -> Unit)): () -> Unit {
+            check(!registered) { "Held only supports one listener" }
+            registered = true
             pending = { stop = start() }
             return {
                 pending = null
@@ -81,6 +83,11 @@ class AdminImagesScreenTest {
             start()
         }
     }
+
+    /** Where the row with [key] is in the whole list, composed or not; -1 if it isn't in the list. */
+    private fun listIndexOf(key: String): Int =
+        composeRule.onNodeWithTag("adminImagesList").fetchSemanticsNode()
+            .config[SemanticsProperties.IndexForKey](key)
 
     private fun show(repo: AdminImageRepository) {
         composeRule.setContent { AdminImagesScreen(rememberNavController(), repo) }
@@ -178,6 +185,7 @@ class AdminImagesScreenTest {
         composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
         composeRule.onNodeWithTag("campsiteImagesLoading").assertIsDisplayed()
         composeRule.runOnIdle { held.release() }
+        composeRule.onNodeWithTag("adminImagesList").performScrollToNode(hasTestTag("imageCard_site1"))
         composeRule.onNodeWithTag("imageCard_site1").assertIsDisplayed()
         composeRule.onNodeWithTag("campsiteImagesLoading").assertDoesNotExist()
     }
@@ -208,6 +216,7 @@ class AdminImagesScreenTest {
         composeRule.onNodeWithTag("imageFilterButton").performClick()
         composeRule.onNodeWithTag("imageFilter_CAMPSITES").performClick()
         composeRule.onNodeWithTag("emptyImagesMessage").assertTextContains("No uploaded images found.")
+        composeRule.onNodeWithTag("profileImagesError").assertDoesNotExist()
     }
 
     @Test
@@ -229,18 +238,19 @@ class AdminImagesScreenTest {
         composeRule.onNodeWithTag("imageCard_site1").assertIsDisplayed()
         composeRule.onNodeWithTag("imageFilterButton").performClick()
         composeRule.onNodeWithTag("imageFilter_PROFILES").performClick()
-        // Every row of a short list is composed, so the count proves nothing else is in it.
-        composeRule.onNodeWithTag("adminImagesList").onChildren().assertCountEquals(1)
         composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
+        assertEquals(-1, listIndexOf("CAMPSITE_site1"))
     }
 
     @Test
     fun searchFindsProfileByUserName() {
         show(repo(listOf(alice, ProfileImageEntry("zed", "Zed Albers", picture))))
-        composeRule.onNodeWithTag("adminImagesList").performScrollToNode(hasTestTag("profileImageCard_zed"))
+        // Both are in the list before searching, so -1 afterwards means the search removed them.
+        assertTrue(listIndexOf("PROFILE_zed") >= 0 && listIndexOf("CAMPSITE_site1") >= 0)
         composeRule.onNodeWithTag("imageSearchField").performTextInput("moreau")
-        composeRule.onNodeWithTag("adminImagesList").onChildren().assertCountEquals(1)
         composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
+        assertEquals(-1, listIndexOf("PROFILE_zed"))
+        assertEquals(-1, listIndexOf("CAMPSITE_site1"))
     }
 
     @Test

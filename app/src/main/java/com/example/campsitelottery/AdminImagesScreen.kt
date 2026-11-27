@@ -292,7 +292,7 @@ fun AdminImagesScreen(
             }
         }
 
-        campsiteError?.let {
+        campsiteError?.takeIf { showsCampsites }?.let {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = it,
@@ -310,7 +310,7 @@ fun AdminImagesScreen(
                 modifier = Modifier.testTag("imageErrorMessage"),
             )
         }
-        profileError?.let {
+        profileError?.takeIf { showsProfiles }?.let {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = it,
