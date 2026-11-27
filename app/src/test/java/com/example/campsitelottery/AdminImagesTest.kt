@@ -69,6 +69,23 @@ class AdminImagesTest {
     }
 
     @Test
+    fun searchIgnoresStoredImageDataButMatchesCampsiteWebAddress() {
+        val items = build(
+            campsites = listOf(lakeside.copy(imageUrl = "/9j/4AAQSkZJRgABAQ"), lakeside.copy(campsiteId = "web", name = "Web", imageUrl = "https://example.com/pines.jpg")),
+            profiles = listOf(alice.copy(image = "/9j/4AAQSkZJRgABAQ")),
+        )
+        assertEquals(emptyList<String>(), AdminImageList.visible(items, "4aaq", ImageFilterMode.ALL).map { it.id })
+        assertEquals(listOf("web"), AdminImageList.visible(items, "pines.jpg", ImageFilterMode.ALL).map { it.id })
+    }
+
+    @Test
+    fun searchAndFilterCombine() {
+        val items = build(campsites = listOf(lakeside.copy(name = "Alice Lake")), profiles = listOf(alice))
+        assertEquals(listOf("alice"), AdminImageList.visible(items, "alice", ImageFilterMode.PROFILES).map { it.id })
+        assertEquals(listOf("site1"), AdminImageList.visible(items, "alice", ImageFilterMode.CAMPSITES).map { it.id })
+    }
+
+    @Test
     fun filterShowsOnlyOneKind() {
         val items = build(profiles = listOf(alice, zed))
         assertEquals(listOf("site1"), AdminImageList.visible(items, "", ImageFilterMode.CAMPSITES).map { it.id })

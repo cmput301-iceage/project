@@ -93,9 +93,10 @@ fun AdminImagesScreen(
     var profiles by remember { mutableStateOf<List<ProfileImageEntry>>(emptyList()) }
     var campsitesLoaded by remember { mutableStateOf(false) }
     var profilesLoaded by remember { mutableStateOf(false) }
-    val isLoading = !campsitesLoaded || !profilesLoaded
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    // Kept apart so a listener update never hides a removal failure, or the other way round.
+    var campsiteError by remember { mutableStateOf<String?>(null) }
     var profileError by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     var actionMessage by remember { mutableStateOf<String?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -108,7 +109,7 @@ fun AdminImagesScreen(
     DisposableEffect(repository) {
         val stopCampsites = repository.listenToCampsites(
             onUpdate = { sites ->
-                errorMessage = null
+                campsiteError = null
                 rawCampsites = sites
                 campsitesLoaded = true
 
@@ -123,7 +124,7 @@ fun AdminImagesScreen(
                 }
             },
             onError = { error ->
-                errorMessage = error.message ?: "Failed to load images."
+                campsiteError = error.message ?: "Failed to load images."
                 campsitesLoaded = true
             },
         )
@@ -151,6 +152,8 @@ fun AdminImagesScreen(
     val visibleImages: List<AdminImageItem> = remember(images, searchQuery, filterMode) {
         AdminImageList.visible(images, searchQuery, filterMode)
     }
+    // Campsite images are shown as soon as they arrive; profile pictures join them when they do.
+    val isLoading = !campsitesLoaded || (!profilesLoaded && visibleImages.isEmpty())
 
     fun confirmDeleteImage(item: AdminImageItem) {
         if (isDeleting) return
@@ -284,6 +287,15 @@ fun AdminImagesScreen(
             }
         }
 
+        campsiteError?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 14.sp,
+                modifier = Modifier.testTag("campsiteImagesError"),
+            )
+        }
         errorMessage?.let {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -300,6 +312,14 @@ fun AdminImagesScreen(
                 color = MaterialTheme.colorScheme.error,
                 fontSize = 14.sp,
                 modifier = Modifier.testTag("profileImagesError"),
+            )
+        }
+        if (!profilesLoaded && !isLoading) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Loading profile pictures...",
+                fontSize = 14.sp,
+                modifier = Modifier.testTag("profileImagesLoading"),
             )
         }
         actionMessage?.let {
@@ -323,7 +343,9 @@ fun AdminImagesScreen(
             visibleImages.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = if (searchQuery.isBlank()) {
+                        text = if (campsiteError != null || profileError != null) {
+                            "Some images couldn't be loaded."
+                        } else if (searchQuery.isBlank()) {
                             "No uploaded images found."
                         } else {
                             "No images match your search."

@@ -102,24 +102,34 @@ object AdminImageList {
         return campsiteImages + profileImages
     }
 
-    /** The images matching [query] (name, owner or ID, ignoring case), filtered or sorted by [mode]. */
+    /**
+     * The images matching [query] (name, owner or ID, ignoring case, or a campsite image's web address),
+     * filtered or sorted by [mode]. Stored image data is never searched.
+     */
     fun visible(items: List<AdminImageItem>, query: String, mode: ImageFilterMode): List<AdminImageItem> {
-        val q = query.trim().lowercase()
-        val matching = if (q.isEmpty()) items else items.filter { item ->
-            item.name.lowercase().contains(q) ||
-                item.ownerLabel.lowercase().contains(q) ||
-                item.ownerId.lowercase().contains(q) ||
-                item.imageUrl.lowercase().contains(q)
+        val ofKind = when (mode) {
+            ImageFilterMode.CAMPSITES -> items.filter { it.kind == AdminImageKind.CAMPSITE }
+            ImageFilterMode.PROFILES -> items.filter { it.kind == AdminImageKind.PROFILE }
+            else -> items
+        }
+        val q = query.trim()
+        val matching = if (q.isEmpty()) ofKind else ofKind.filter { item ->
+            item.name.contains(q, ignoreCase = true) ||
+                item.ownerLabel.contains(q, ignoreCase = true) ||
+                item.ownerId.contains(q, ignoreCase = true) ||
+                (item.kind == AdminImageKind.CAMPSITE && isWebAddress(item.imageUrl) &&
+                    item.imageUrl.contains(q, ignoreCase = true))
         }
         return when (mode) {
-            ImageFilterMode.ALL -> matching
-            ImageFilterMode.CAMPSITES -> matching.filter { it.kind == AdminImageKind.CAMPSITE }
-            ImageFilterMode.PROFILES -> matching.filter { it.kind == AdminImageKind.PROFILE }
             // Campsite images A-Z, then profile pictures A-Z.
             ImageFilterMode.SORT_CAMPSITE -> matching.sortedWith(compareBy({ it.kind }, { it.name.lowercase() }))
             ImageFilterMode.SORT_OWNER -> matching.sortedBy { it.ownerLabel.lowercase() }
+            else -> matching
         }
     }
+
+    private fun isWebAddress(image: String): Boolean =
+        image.startsWith("http://", ignoreCase = true) || image.startsWith("https://", ignoreCase = true)
 }
 
 /** Loads and removes the images shown in Admin → Images. */
@@ -191,7 +201,8 @@ class FirestoreAdminImageRepository(
 
     private fun profileImageEntry(doc: DocumentSnapshot): ProfileImageEntry? = runCatching {
         val image = doc.getString("profileImageUrl")?.takeIf { it.isNotBlank() } ?: return null
-        ProfileImageEntry(doc.id, doc.getString("name").orEmpty(), image)
+        // A name that isn't text shouldn't hide a picture the admin may need to remove.
+        ProfileImageEntry(doc.id, runCatching { doc.getString("name") }.getOrNull().orEmpty(), image)
     }.getOrNull()
 
     override fun loadUserName(userId: String, onResult: (String?) -> Unit) {
@@ -246,6 +257,12 @@ class InMemoryAdminImageRepository(
 
     /** The profile pictures as stored now. */
     fun storedProfiles(): List<ProfileImageEntry> = profiles.values.toList()
+
+    /** Stores or replaces a campsite, as if its owner changed it. */
+    fun putCampsite(site: Campsite) {
+        campsites[site.campsiteId] = site
+        campsiteListeners.toList().forEach { it(storedCampsites()) }
+    }
 
     /** Stores or replaces a profile picture, as if the user changed it. */
     fun putProfile(profile: ProfileImageEntry) {

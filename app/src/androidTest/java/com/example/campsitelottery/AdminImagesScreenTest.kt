@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.util.Base64
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -43,6 +45,20 @@ class AdminImagesScreenTest {
 
     private fun repo(profiles: List<ProfileImageEntry> = listOf(alice)) =
         InMemoryAdminImageRepository(listOf(site), profiles, mapOf("owner1" to "Olive Owner"))
+
+    /** Holds back profile pictures until [release] is called, like a slow Firestore query. */
+    private class HeldProfiles(private val inner: InMemoryAdminImageRepository) : AdminImageRepository by inner {
+        private var pending: (() -> Unit)? = null
+        override fun listenToProfileImages(
+            onUpdate: (List<ProfileImageEntry>) -> Unit,
+            onError: (Exception) -> Unit,
+        ): () -> Unit {
+            var stop: () -> Unit = {}
+            pending = { stop = inner.listenToProfileImages(onUpdate, onError) }
+            return { stop() }
+        }
+        fun release() = pending!!.invoke()
+    }
 
     private fun show(repo: AdminImageRepository) {
         composeRule.setContent { AdminImagesScreen(rememberNavController(), repo) }
@@ -110,8 +126,44 @@ class AdminImagesScreenTest {
     }
 
     @Test
+    fun campsiteImagesShowWhileProfilePicturesAreStillLoading() {
+        val held = HeldProfiles(repo())
+        show(held)
+        composeRule.onNodeWithTag("imageCard_site1").assertIsDisplayed()
+        composeRule.onNodeWithTag("profileImagesLoading").assertIsDisplayed()
+        composeRule.onNodeWithTag("profileImageCard_alice").assertDoesNotExist()
+
+        composeRule.runOnIdle { held.release() }
+        composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
+        composeRule.onNodeWithTag("profileImagesLoading").assertDoesNotExist()
+    }
+
+    @Test
+    fun spinnerNotEmptyMessageWhileOnlyProfilePicturesAreLoading() {
+        val held = HeldProfiles(InMemoryAdminImageRepository(profiles = listOf(alice)))
+        show(held)
+        composeRule.onNodeWithTag("emptyImagesMessage").assertDoesNotExist()
+        composeRule.runOnIdle { held.release() }
+        composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
+    }
+
+    @Test
+    fun removalErrorSurvivesLaterCampsiteUpdate() {
+        val repo = repo()
+        show(repo)
+        composeRule.onNodeWithTag("deleteProfileImageButton_alice").performClick()
+        composeRule.runOnIdle { repo.putProfile(alice.copy(image = jpeg(Color.BLUE))) }
+        composeRule.onNodeWithTag("confirmDeleteImageButton").performClick()
+        composeRule.runOnIdle { repo.putCampsite(site.copy(name = "Lakeside Pines (renamed)")) }
+
+        composeRule.onNodeWithText("Campsite: Lakeside Pines (renamed)").assertIsDisplayed()
+        composeRule.onNodeWithTag("imageErrorMessage").assertTextContains(AdminImageMessages.PICTURE_CHANGED)
+    }
+
+    @Test
     fun filterShowsOnlyProfilePictures() {
         show(repo())
+        composeRule.onNodeWithTag("imageCard_site1").assertIsDisplayed()
         composeRule.onNodeWithTag("imageFilterButton").performClick()
         composeRule.onNodeWithTag("imageFilter_PROFILES").performClick()
         composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
@@ -121,6 +173,7 @@ class AdminImagesScreenTest {
     @Test
     fun searchFindsProfileByUserName() {
         show(repo(listOf(alice, ProfileImageEntry("zed", "Zed Albers", picture))))
+        composeRule.onNodeWithTag("adminImagesList").performScrollToNode(hasTestTag("profileImageCard_zed"))
         composeRule.onNodeWithTag("imageSearchField").performTextInput("moreau")
         composeRule.onNodeWithTag("profileImageCard_alice").assertIsDisplayed()
         composeRule.onNodeWithTag("profileImageCard_zed").assertDoesNotExist()
